@@ -1,8 +1,7 @@
 FROM php:8.1-fpm
 
-# Install system dependencies + Nginx
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    nginx \
     git \
     curl \
     libpng-dev \
@@ -17,23 +16,20 @@ RUN pecl install redis && docker-php-ext-enable redis
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions (PENTING: mysqli harus di-install)
+# Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd
 
-# Set working directory ke /app (sesuai error path)
-WORKDIR /app
+# Set working directory
+WORKDIR /var/www/html
 
 # Copy existing application directory
-COPY . /app
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY . /var/www/html
 
 # Change ownership of our applications
-RUN chown -R www-data:www-data /app
+RUN chown -R www-data:www-data /var/www/html
 
-# Expose port
-EXPOSE 8080
+# Expose port 9000
+EXPOSE 9000
 
-# Start PHP-FPM and Nginx
-CMD php-fpm -D && nginx -g 'daemon off;'
+# Start PHP-FPM
+CMD ["php-fpm"]

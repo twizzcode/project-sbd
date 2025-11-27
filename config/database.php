@@ -32,8 +32,4 @@ try {
 } catch (PDOException $e) {
     die("PDO Connection failed: " . $e->getMessage());
 }
-<<<<<<< HEAD
 ?>
-=======
-?>
->>>>>>> 2a7b4b58f0a8f8f4cd72e124efeb7fe737ad0bb9

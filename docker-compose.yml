@@ -10,7 +10,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./:/var/www/html
-    user: "1000:1000"  # Use your host user's UID:GID
     networks:
       - vetclinic_network
     depends_on:
