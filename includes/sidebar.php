@@ -86,7 +86,7 @@
                 </li>
 
                 <!-- Reports -->
-                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
+                <?php if (isset($_SESSION['role']) && (($_SESSION['role'] === 'Admin') || ($_SESSION['role'] === 'Staff'))): ?>
                 <li>
                     <a href="/reports/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/reports/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
                         <i class="fas fa-chart-bar w-5 h-5 mr-3"></i>

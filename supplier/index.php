@@ -80,7 +80,7 @@ include '../includes/header.php';
             <p class="text-gray-600">Kelola data dokter hewan klinik</p>
         </div>
         
-        <?php if ($_SESSION['role'] === 'Admin'): ?>
+        <?php if (in_array($_SESSION['role'], ['Admin', 'Staff'])): ?>
             <a href="create.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg inline-flex items-center">
                 <i class="fas fa-plus mr-2"></i> Tambah Dokter
             </a>
@@ -231,16 +231,16 @@ include '../includes/header.php';
                                            title="Detail">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <?php if (in_array($_SESSION['role'], ['Admin', 'Inventory'])): ?>
-                                            <a href=\"detail.php?id=<?php echo $supplier['supplier_id']; ?>\"
-                                               class=\"text-blue-500 hover:text-blue-600\"
-                                               title=\"Detail\">
-                                                <i class=\"fas fa-eye\"></i>
+                                        <?php if (in_array($_SESSION['role'], ['Admin', 'Inventory', 'Staff'])): ?>
+                                            <a href="detail.php?id=<?php echo $supplier['supplier_id']; ?>"
+                                               class="text-blue-500 hover:text-blue-600"
+                                               title="Detail">
+                                                <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href=\"edit.php?id=<?php echo $supplier['supplier_id']; ?>\"
-                                               class=\"text-yellow-500 hover:text-yellow-600\"
-                                               title=\"Edit\">
-                                                <i class=\"fas fa-edit\"></i>
+                                            <a href="edit.php?id=<?php echo $supplier['supplier_id']; ?>"
+                                               class="text-yellow-500 hover:text-yellow-600"
+                                               title="Edit">
+                                                <i class="fas fa-edit"></i>
                                             </a>
                                         <?php endif; ?>
                                     </div>
@@ -277,10 +277,10 @@ include '../includes/header.php';
                 </div>
             <?php endif; ?>
         <?php else: ?>
-            <div class=\"text-center py-8\">
-                <div class=\"text-gray-500 mb-2\">Tidak ada data dokter hewan</div>
-                <?php if ($_SESSION['role'] === 'Admin'): ?>
-                    <a href=\"create.php\" class=\"text-blue-500 hover:text-blue-600\">
+            <div class="text-center py-8">
+                <div class="text-gray-500 mb-2">Tidak ada data dokter hewan</div>
+                <?php if (in_array($_SESSION['role'], ['Admin', 'Staff'])): ?>
+                    <a href="create.php" class="text-blue-500 hover:text-blue-600">
                         Tambah dokter baru
                     </a>
                 <?php endif; ?>

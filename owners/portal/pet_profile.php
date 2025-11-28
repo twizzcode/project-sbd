@@ -120,10 +120,15 @@ $page_title = "Health Timeline - " . $pet['nama_hewan'];
     <?php require_once __DIR__ . '/../includes/owner_header.php'; ?>
 
     <div class="container mx-auto px-4 py-8 max-w-7xl">
-        <!-- Back Button -->
-        <a href="/owners/portal/index.php" class="inline-flex items-center text-indigo-600 hover:text-indigo-800 mb-6">
-            <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
-        </a>
+        <!-- Back Button & Edit -->
+        <div class="flex items-center justify-between mb-6">
+            <a href="/owners/portal/index.php" class="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+            </a>
+            <a href="edit_pet.php?id=<?= $pet_id ?>" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                <i class="fas fa-edit mr-2"></i>Edit Pet Info
+            </a>
+        </div>
 
         <!-- Pet Header Card -->
         <div class="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl shadow-xl p-8 text-white mb-8">

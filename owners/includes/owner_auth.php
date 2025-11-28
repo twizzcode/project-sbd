@@ -22,8 +22,15 @@ if ($_SESSION['role'] !== 'Owner') {
 // Verify owner record exists
 require_once __DIR__ . '/../../config/database.php';
 
-$stmt = $pdo->prepare("SELECT owner_id, nama_lengkap, email FROM owner WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
+// Check if owner_id is set in session (from login)
+if (!isset($_SESSION['owner_id'])) {
+    session_destroy();
+    header('Location: /owners/portal/login.php?error=invalid_session');
+    exit;
+}
+
+$stmt = $pdo->prepare("SELECT owner_id, nama_lengkap, email, username FROM owner WHERE owner_id = ?");
+$stmt->execute([$_SESSION['owner_id']]);
 $owner = $stmt->fetch();
 
 if (!$owner) {
@@ -32,12 +39,13 @@ if (!$owner) {
     exit;
 }
 
-// Store owner info in session
+// Store/update owner info in session
 $_SESSION['owner_id'] = $owner['owner_id'];
 $_SESSION['owner_name'] = $owner['nama_lengkap'];
 $_SESSION['owner_email'] = $owner['email'];
+$_SESSION['username'] = $owner['username'];
 
-// Update last activity (owner table already has last_login column from migration)
+// Update last activity
 $stmt = $pdo->prepare("UPDATE owner SET last_login = NOW() WHERE owner_id = ?");
 $stmt->execute([$owner['owner_id']]);
 ?>

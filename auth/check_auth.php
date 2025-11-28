@@ -50,7 +50,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'Owner') {
 
 // Check role-based access
 function check_role($required_role) {
-    if ($_SESSION['role'] !== $required_role && $_SESSION['role'] !== 'Admin') {
+    if ($_SESSION['role'] !== $required_role && $_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'Staff') {
         header('HTTP/1.0 403 Forbidden');
         die('Access denied');
     }
@@ -58,7 +58,7 @@ function check_role($required_role) {
 
 // Check if user has any of the required roles
 function check_roles($required_roles) {
-    if (!in_array($_SESSION['role'], $required_roles) && $_SESSION['role'] !== 'Admin') {
+    if (!in_array($_SESSION['role'], $required_roles) && $_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'Staff') {
         header('HTTP/1.0 403 Forbidden');
         die('Access denied');
     }

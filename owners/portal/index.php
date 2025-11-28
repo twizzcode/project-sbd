@@ -83,18 +83,21 @@ require_once __DIR__ . '/../includes/owner_header.php';
         </div>
 
         <!-- Pets Grid -->
-        <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">My Pets</h2>
+        <div class="mb-6 flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-gray-800">My Pets</h2>
+            <a href="add_pet.php" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg hover:shadow-xl">
+                <i class="fas fa-plus mr-2"></i>Add New Pet
+            </a>
         </div>
 
         <?php if (empty($pets)): ?>
         <div class="bg-white rounded-xl shadow-lg p-12 text-center">
             <i class="fas fa-paw text-gray-300 text-6xl mb-4"></i>
             <h3 class="text-xl font-semibold text-gray-700 mb-2">No Pets Yet</h3>
-            <p class="text-gray-500 mb-4">You haven't registered any pets yet.</p>
-            <a href="tel:+62123456789" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                <i class="fas fa-phone mr-2"></i>
-                Contact Clinic to Register
+            <p class="text-gray-500 mb-6">Start by registering your first pet to access all features</p>
+            <a href="add_pet.php" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-lg hover:shadow-xl">
+                <i class="fas fa-plus mr-2"></i>
+                Register Your First Pet
             </a>
         </div>
         <?php else: ?>

@@ -554,6 +554,12 @@
                         <span class="px-4 py-2 rounded-full text-white text-sm font-medium" style="background: rgba(255, 255, 255, 0.15);">
                             <i class="fas fa-phone-alt mr-2 text-blue-300"></i>+62 123-456-7890
                         </span>
+                        <a href="/owners/portal/login.php" class="px-6 py-2 rounded-full text-white text-sm font-bold hover:bg-white hover:text-blue-900 transition-all" style="background: rgba(255, 255, 255, 0.2);">
+                            <i class="fas fa-user mr-2"></i>Login Owner
+                        </a>
+                        <a href="/auth/login.php" class="px-6 py-2 rounded-full text-blue-900 bg-white text-sm font-bold hover:shadow-lg transition-all">
+                            <i class="fas fa-user-shield mr-2"></i>Login Staff
+                        </a>
                     </div>
                 </div>
             </div>
@@ -572,6 +578,24 @@
                 <p class="text-xl max-w-2xl mx-auto mb-8 fade-in-up delay-200" style="color: #1e40af;">
                     Sistem manajemen klinik hewan modern dengan fitur Multi-Pet Dashboard yang memudahkan Anda merawat seluruh keluarga berbulu
                 </p>
+                
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8 fade-in-up delay-300">
+                    <a href="/owners/portal/login.php" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine text-white" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);">
+                        <i class="fas fa-calendar-check mr-3 text-xl"></i>
+                        <div class="text-left">
+                            <div class="text-sm font-normal opacity-90">Jadwalkan Sekarang</div>
+                            <div>Booking Appointment</div>
+                        </div>
+                    </a>
+                    <a href="/owners/portal/login.php" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine text-white" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                        <i class="fas fa-stethoscope mr-3 text-xl"></i>
+                        <div class="text-left">
+                            <div class="text-sm font-normal opacity-90">Cek Kesehatan</div>
+                            <div>Periksa Sekarang</div>
+                        </div>
+                    </a>
+                </div>
             
                 <!-- Cute Pet Icons -->
                 <div class="flex justify-center gap-6 mb-12 fade-in-up delay-300">
@@ -601,71 +625,6 @@
                     </div>
                 </div>
             </div>
-
-        <!-- Main Portal Cards -->
-        <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-24">
-            
-            <!-- Staff Portal -->
-            <div class="glass-white rounded-3xl p-8 card-hover shadow-2xl slide-in-left">
-                <div class="text-center mb-6">
-                    <div class="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-2xl float-animation accent-indigo">
-                        <i class="fas fa-user-md text-white text-4xl"></i>
-                    </div>
-                    <h3 class="text-3xl font-bold text-gray-800 mb-2">Portal Staff</h3>
-                    <p class="text-gray-600">Untuk Admin, Dokter & Staf Klinik</p>
-                </div>
-
-                <div class="space-y-3 mb-6">
-                    <div class="flex items-center space-x-3 p-3 bg-indigo-50 rounded-xl">
-                        <i class="fas fa-check-circle text-indigo-600 text-xl"></i>
-                        <span class="text-gray-700 font-medium">Manajemen Pasien Lengkap</span>
-                    </div>
-                    <div class="flex items-center space-x-3 p-3 bg-indigo-50 rounded-xl">
-                        <i class="fas fa-check-circle text-indigo-600 text-xl"></i>
-                        <span class="text-gray-700 font-medium">Rekam Medis Digital</span>
-                    </div>
-                    <div class="flex items-center space-x-3 p-3 bg-indigo-50 rounded-xl">
-                        <i class="fas fa-check-circle text-indigo-600 text-xl"></i>
-                        <span class="text-gray-700 font-medium">Inventori & Laporan</span>
-                    </div>
-                </div>
-
-                <a href="/auth/login.php" class="block w-full text-white text-center py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine accent-indigo">
-                    <i class="fas fa-sign-in-alt mr-2"></i>Login Staff
-                </a>
-            </div>
-
-            <!-- Owner Portal -->
-            <div class="glass-white rounded-3xl p-8 card-hover shadow-2xl slide-in-right">
-                <div class="text-center mb-6">
-                    <div class="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-2xl float-animation accent-purple" style="animation-delay: 0.5s;">
-                        <i class="fas fa-heart text-white text-4xl"></i>
-                    </div>
-                    <h3 class="text-3xl font-bold text-gray-800 mb-2">Portal Owner</h3>
-                    <p class="text-gray-600">Untuk Pemilik Hewan Kesayangan</p>
-                </div>
-
-                <div class="space-y-3 mb-6">
-                    <div class="flex items-center space-x-3 p-3 bg-purple-50 rounded-xl">
-                        <i class="fas fa-check-circle text-purple-600 text-xl"></i>
-                        <span class="text-gray-700 font-medium">Kelola Multi-Pet Dashboard</span>
-                    </div>
-                    <div class="flex items-center space-x-3 p-3 bg-purple-50 rounded-xl">
-                        <i class="fas fa-check-circle text-purple-600 text-xl"></i>
-                        <span class="text-gray-700 font-medium">Timeline Kesehatan Visual</span>
-                    </div>
-                    <div class="flex items-center space-x-3 p-3 bg-purple-50 rounded-xl">
-                        <i class="fas fa-check-circle text-purple-600 text-xl"></i>
-                        <span class="text-gray-700 font-medium">Reminder Otomatis</span>
-                    </div>
-                </div>
-
-                <a href="/owners/portal/login.php" class="block w-full text-white text-center py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine accent-purple">
-                    <i class="fas fa-sign-in-alt mr-2"></i>Login Owner
-                </a>
-            </div>
-
-        </div>
 
         <!-- Unique Features Section -->
         <div class="glass-white rounded-3xl p-12 max-w-6xl mx-auto mb-24 shadow-2xl fade-in-up delay-400">
@@ -741,61 +700,18 @@
         </div>
 
         <!-- Demo Credentials -->
-        <div class="glass-white rounded-3xl p-10 max-w-4xl mx-auto shadow-2xl fade-in-up delay-500">
+        <div class="glass-white rounded-3xl p-10 max-w-4xl mx-auto shadow-2xl fade-in-up delay-500 mb-20">
             <div class="text-center mb-8">
                 <div class="inline-block p-4 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-3xl mb-4">
-                    <i class="fas fa-key text-indigo-600 text-5xl"></i>
+                    <i class="fas fa-rocket text-indigo-600 text-5xl"></i>
                 </div>
-                <h3 class="text-3xl font-bold text-gray-800 mb-2">Demo Login</h3>
-                <p class="text-gray-600">Coba platform kami dengan kredensial demo</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-6">
-                <!-- Staff Credentials -->
-                <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-6 border-2 border-indigo-200">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-user-shield text-white text-xl"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-gray-800 text-lg">Admin/Staff</h4>
-                            <p class="text-gray-600 text-sm">Full access</p>
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="bg-white rounded-xl p-3">
-                            <p class="text-xs text-gray-500 mb-1">Username</p>
-                            <p class="font-mono font-bold text-gray-800">admin</p>
-                        </div>
-                        <div class="bg-white rounded-xl p-3">
-                            <p class="text-xs text-gray-500 mb-1">Password</p>
-                            <p class="font-mono font-bold text-gray-800">password</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Owner Credentials -->
-                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border-2 border-purple-200">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-user text-white text-xl"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-gray-800 text-lg">Pet Owner</h4>
-                            <p class="text-gray-600 text-sm">Owner portal</p>
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="bg-white rounded-xl p-3">
-                            <p class="text-xs text-gray-500 mb-1">Username</p>
-                            <p class="font-mono font-bold text-gray-800">andi_owner</p>
-                        </div>
-                        <div class="bg-white rounded-xl p-3">
-                            <p class="text-xs text-gray-500 mb-1">Password</p>
-                            <p class="font-mono font-bold text-gray-800">password123</p>
-                        </div>
-                    </div>
-                </div>
+                <h3 class="text-3xl font-bold text-gray-800 mb-2">Mulai Kelola Kesehatan Pet Anda</h3>
+                <p class="text-gray-600 mb-6">Daftar sekarang dan dapatkan akses ke Multi-Pet Dashboard</p>
+                
+                <a href="/owners/portal/login.php" class="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-5 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl transition-all btn-shine">
+                    <i class="fas fa-user-plus mr-2"></i>Daftar / Login Sekarang
+                </a>
+                <p class="text-gray-500 text-sm mt-4">Gratis • Tanpa biaya tersembunyi • Setup dalam 2 menit</p>
             </div>
         </div>
     </section>

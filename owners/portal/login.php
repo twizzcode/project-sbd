@@ -12,31 +12,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please enter both username and password';
     } else {
         try {
-            // Find user with Owner role
+            // Find owner by username
             $stmt = $pdo->prepare("
-                SELECT u.*, o.owner_id, o.nama_lengkap as owner_name
-                FROM users u
-                JOIN owner o ON u.user_id = o.user_id
-                WHERE u.username = ? AND u.role = 'Owner' AND u.status = 'Aktif'
+                SELECT owner_id, username, password, nama_lengkap, email
+                FROM owner
+                WHERE username = ?
             ");
             $stmt->execute([$username]);
-            $user = $stmt->fetch();
+            $owner = $stmt->fetch();
             
-            if ($user && password_verify($password, $user['password'])) {
+            if ($owner && password_verify($password, $owner['password'])) {
                 // Regenerate session ID for security
                 session_regenerate_id(true);
                 
                 // Set session
-                $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['nama_lengkap'] = $user['nama_lengkap'];
+                $_SESSION['user_id'] = $owner['owner_id'];
+                $_SESSION['username'] = $owner['username'];
+                $_SESSION['nama_lengkap'] = $owner['nama_lengkap'];
                 $_SESSION['role'] = 'Owner';
-                $_SESSION['owner_id'] = $user['owner_id'];
-                $_SESSION['owner_name'] = $user['owner_name'];
+                $_SESSION['owner_id'] = $owner['owner_id'];
+                $_SESSION['owner_name'] = $owner['nama_lengkap'];
                 
                 // Update last login
                 $stmt = $pdo->prepare("UPDATE owner SET last_login = NOW() WHERE owner_id = ?");
-                $stmt->execute([$user['owner_id']]);
+                $stmt->execute([$owner['owner_id']]);
                 
                 header('Location: index.php');
                 exit;
@@ -120,22 +119,24 @@ $page_title = 'Owner Portal Login';
                 </button>
             </form>
 
-            <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                <p class="text-sm text-gray-600">
-                    Staff or Doctor? 
-                    <a href="/auth/login.php" class="text-indigo-600 hover:text-indigo-700 font-semibold">
-                        Login here
-                    </a>
-                </p>
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <div class="text-center mb-4">
+                    <p class="text-sm text-gray-600">
+                        Don't have an account? 
+                        <a href="register.php" class="text-indigo-600 hover:text-indigo-700 font-semibold">
+                            <i class="fas fa-user-plus mr-1"></i>Register here
+                        </a>
+                    </p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">
+                        Staff or Doctor? 
+                        <a href="/auth/login.php" class="text-indigo-600 hover:text-indigo-700 font-semibold">
+                            Login here
+                        </a>
+                    </p>
+                </div>
             </div>
-        </div>
-
-        <!-- Help Text -->
-        <div class="mt-6 text-center">
-            <p class="text-sm text-gray-600">
-                <i class="fas fa-info-circle mr-1"></i>
-                New to VetClinic? Contact our clinic to register your account.
-            </p>
         </div>
     </div>
 </body>

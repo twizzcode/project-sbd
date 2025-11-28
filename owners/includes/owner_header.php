@@ -338,8 +338,14 @@
                     <a href="/owners/portal/index.php" class="text-gray-700 hover:text-indigo-600 transition flex items-center">
                         <i class="fas fa-home mr-2"></i>Dashboard
                     </a>
+                    <a href="/owners/portal/add_pet.php" class="text-gray-700 hover:text-indigo-600 transition flex items-center">
+                        <i class="fas fa-paw mr-2"></i>Add Pet
+                    </a>
                     <a href="/owners/portal/appointments.php" class="text-gray-700 hover:text-indigo-600 transition flex items-center">
-                        <i class="fas fa-calendar mr-2"></i>My Appointments
+                        <i class="fas fa-calendar mr-2"></i>Appointments
+                    </a>
+                    <a href="/owners/portal/book_appointment.php" class="text-gray-700 hover:text-indigo-600 transition flex items-center">
+                        <i class="fas fa-calendar-plus mr-2"></i>Book Now
                     </a>
                 </div>
 
