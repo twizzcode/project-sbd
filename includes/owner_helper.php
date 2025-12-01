@@ -92,14 +92,10 @@ function getOwnerPetsWithHealth($pdo, $owner_id) {
             TIMESTAMPDIFF(YEAR, p.tanggal_lahir, CURDATE()) as umur_tahun,
             TIMESTAMPDIFF(MONTH, p.tanggal_lahir, CURDATE()) % 12 as umur_bulan,
             (SELECT COUNT(*) FROM appointment WHERE pet_id = p.pet_id) as total_appointments,
-            (SELECT COUNT(*) FROM vaksinasi WHERE pet_id = p.pet_id) as total_vaccinations,
             (SELECT tanggal_appointment FROM appointment 
-             WHERE pet_id = p.pet_id AND status IN ('Scheduled', 'Confirmed') 
+             WHERE pet_id = p.pet_id AND status IN ('Pending', 'Confirmed') 
              AND tanggal_appointment >= CURDATE()
              ORDER BY tanggal_appointment ASC LIMIT 1) as next_appointment,
-            (SELECT tanggal_vaksin_berikutnya FROM vaksinasi 
-             WHERE pet_id = p.pet_id 
-             ORDER BY tanggal_vaksin DESC LIMIT 1) as next_vaccination,
             (SELECT mr.tanggal_kunjungan FROM medical_record mr
              WHERE mr.pet_id = p.pet_id
              ORDER BY mr.tanggal_kunjungan DESC LIMIT 1) as last_checkup
@@ -117,16 +113,6 @@ function getOwnerPetsWithHealth($pdo, $owner_id) {
 function getPetHealthStatus($pet) {
     $today = new DateTime();
     
-    // Check vaccination status
-    if ($pet['next_vaccination']) {
-        $next_vac = new DateTime($pet['next_vaccination']);
-        if ($next_vac < $today) {
-            return ['status' => 'overdue', 'label' => 'Vaccination Overdue', 'class' => 'bg-red-100 text-red-800'];
-        } elseif ($next_vac->diff($today)->days <= 7) {
-            return ['status' => 'due_soon', 'label' => 'Vaccination Due Soon', 'class' => 'bg-yellow-100 text-yellow-800'];
-        }
-    }
-    
     // Check if had recent checkup
     if ($pet['last_checkup']) {
         $last_check = new DateTime($pet['last_checkup']);
@@ -140,24 +126,7 @@ function getPetHealthStatus($pet) {
     return ['status' => 'checkup_due', 'label' => 'Checkup Recommended', 'class' => 'bg-blue-100 text-blue-800'];
 }
 
-/**
- * Get vaccination progress percentage
- */
-function getVaccinationProgress($pdo, $pet_id) {
-    // Basic vaccines for dogs/cats (adjust as needed)
-    $required_vaccines = ['Rabies', 'Distemper', 'Parvovirus', 'FVRCP'];
-    
-    $stmt = $pdo->prepare("
-        SELECT DISTINCT jenis_vaksin 
-        FROM vaksinasi 
-        WHERE pet_id = ?
-    ");
-    $stmt->execute([$pet_id]);
-    $completed = $stmt->rowCount();
-    
-    $total = count($required_vaccines);
-    return min(100, ($completed / $total) * 100);
-}
+
 
 /**
  * Format Indonesian date

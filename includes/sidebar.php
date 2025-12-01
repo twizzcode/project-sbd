@@ -13,17 +13,18 @@
     <nav class="flex-1 overflow-y-auto py-4"  style="flex: 1 1 0%; min-height: 0;">
             <ul class="space-y-2 px-3">
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'Owner'): ?>
-                <!-- Dashboard -->
+                
+                <!-- Appointments -->
                 <li>
-                    <a href="/dashboard/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/dashboard/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-home w-5 h-5 mr-3"></i>
-                        <span>Dashboard</span>
+                    <a href="/dashboard/appointments/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/dashboard/appointments/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
+                        <i class="fas fa-calendar-alt w-5 h-5 mr-3"></i>
+                        <span>Janji Temu</span>
                     </a>
                 </li>
-
+                
                 <!-- Owners -->
                 <li>
-                    <a href="/owners/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/owners/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
+                    <a href="/dashboard/owners/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/dashboard/owners/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
                         <i class="fas fa-users w-5 h-5 mr-3"></i>
                         <span>Pemilik Hewan</span>
                     </a>
@@ -31,77 +32,27 @@
 
                 <!-- Pets -->
                 <li>
-                    <a href="/pets/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/pets/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
+                    <a href="/dashboard/pets/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/dashboard/pets/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
                         <i class="fas fa-paw w-5 h-5 mr-3"></i>
                         <span>Hewan</span>
                     </a>
                 </li>
 
-                <!-- Appointments -->
-                <li>
-                    <a href="/appointments/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/appointments/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-calendar-alt w-5 h-5 mr-3"></i>
-                        <span>Janji Temu</span>
-                    </a>
-                </li>
-
                 <!-- Medical Records -->
                 <li>
-                    <a href="/medical-records/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/medical-records/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
+                    <a href="/dashboard/medical-records/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/dashboard/medical-records/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
                         <i class="fas fa-notes-medical w-5 h-5 mr-3"></i>
-                        <span>Rekam Medis</span>
-                    </a>
-                </li>
-
-                <!-- Medicines -->
-                <li>
-                    <a href="/inventory/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/inventory/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-pills w-5 h-5 mr-3"></i>
-                        <span>Obat-obatan</span>
-                    </a>
-                </li>
-
-                <!-- Services -->
-                <li>
-                    <a href="/kategori/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/kategori/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-clipboard-list w-5 h-5 mr-3"></i>
-                        <span>Layanan</span>
+                        <span>Rekam Pertemuan</span>
                     </a>
                 </li>
 
                 <!-- Veterinarians -->
                 <li>
-                    <a href="/supplier/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/supplier/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
+                    <a href="/dashboard/veterinarians/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/dashboard/veterinarians/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
                         <i class="fas fa-user-md w-5 h-5 mr-3"></i>
                         <span>Dokter Hewan</span>
                     </a>
                 </li>
-
-                <!-- Vaccinations -->
-                <li>
-                    <a href="/vaccinations/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/vaccinations/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-syringe w-5 h-5 mr-3"></i>
-                        <span>Vaksinasi</span>
-                    </a>
-                </li>
-
-                <!-- Reports -->
-                <?php if (isset($_SESSION['role']) && (($_SESSION['role'] === 'Admin') || ($_SESSION['role'] === 'Staff'))): ?>
-                <li>
-                    <a href="/reports/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/reports/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-chart-bar w-5 h-5 mr-3"></i>
-                        <span>Laporan</span>
-                    </a>
-                </li>
-
-                <!-- Users -->
-                <li>
-                    <a href="/users/" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg <?php echo strpos($_SERVER['REQUEST_URI'], '/users/') !== false ? 'bg-blue-50 text-blue-600' : ''; ?>">
-                        <i class="fas fa-user-cog w-5 h-5 mr-3"></i>
-                        <span>Users</span>
-                    </a>
-                </li>
-                <?php endif; ?>
                 
                 <?php else: ?>
                 <!-- Owner Portal Dashboard -->
@@ -131,18 +82,6 @@
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-gray-700 truncate"><?php echo $_SESSION['nama_lengkap']; ?></p>
                 <p class="text-xs text-gray-500"><?php echo ucfirst($_SESSION['role']); ?></p>
-            </div>
-        </div>
-        
-        <!-- Dark Mode Toggle -->
-        <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-600">
-                <i class="fas fa-moon mr-2"></i>Dark Mode
-            </span>
-            <div class="dark-mode-toggle" onclick="toggleDarkMode()" id="darkModeToggle">
-                <div class="toggle-slider">
-                    <i class="fas fa-sun text-yellow-500 text-xs"></i>
-                </div>
             </div>
         </div>
     </div>

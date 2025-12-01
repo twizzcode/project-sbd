@@ -5,10 +5,9 @@ $page_title = 'My Profile';
 
 // Get owner details
 $stmt = $pdo->prepare("
-    SELECT o.*, u.username, u.email as user_email 
-    FROM owner o
-    JOIN users u ON o.user_id = u.user_id
-    WHERE o.owner_id = ?
+    SELECT * 
+    FROM users 
+    WHERE user_id = ? AND role = 'Owner'
 ");
 $stmt->execute([$_SESSION['owner_id']]);
 $owner = $stmt->fetch();
@@ -67,7 +66,7 @@ $appointment_count = $stmt->fetchColumn();
                     <i class="fas fa-envelope text-indigo-600 text-xl mr-4 w-8"></i>
                     <div>
                         <p class="text-sm text-gray-500">Email</p>
-                        <p class="text-gray-800 font-semibold"><?= htmlspecialchars($owner['email']) ?></p>
+                        <p class="text-gray-800 font-semibold"><?= htmlspecialchars($owner['email'] ?? '-') ?></p>
                     </div>
                 </div>
                 

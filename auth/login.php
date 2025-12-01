@@ -1,48 +1,63 @@
 <?php
 session_start();
+require_once __DIR__ . '/../config/database.php';
 
-// Check if user is already logged in
+// Redirect jika sudah login
 if (isset($_SESSION['user_id'])) {
-    header('Location: /dashboard/');
-    exit();
+    $role = $_SESSION['role'];
+    if ($role === 'Admin') {
+        header('Location: /dashboard/index.php');
+    } else {
+        header('Location: /owners/portal/index.php');
+    }
+    exit;
 }
-
-require_once '../config/database.php';
-require_once '../includes/functions.php';
 
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = clean_input($_POST['username']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
-    $remember = isset($_POST['remember']) ? true : false;
-
-    // Validate input
-    if (empty($username) || empty($password)) {
-        $error = 'Username dan password wajib diisi';
-    } else {
-        // Check user credentials
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND status = 'Aktif'");
-        $stmt->execute([$username]);
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT user_id, username, password, nama_lengkap, email, role, status 
+            FROM users 
+            WHERE (username = ? OR email = ?) AND status = 'Aktif'
+        ");
+        $stmt->execute([$username, $username]);
         $user = $stmt->fetch();
-
+        
         if ($user && password_verify($password, $user['password'])) {
-            // Set session variables
+            // Set session
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['nama_lengkap'] = $user['nama_lengkap'];
+            $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
-
+            
+            // For backward compatibility with existing code
+            if ($user['role'] === 'Owner') {
+                $_SESSION['owner_id'] = $user['user_id'];
+                $_SESSION['owner_name'] = $user['nama_lengkap'];
+            }
+            
             // Update last login
-            $stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
-            $stmt->execute([$user['user_id']]);
-
-            // Redirect to dashboard
-            header('Location: /dashboard/');
-            exit();
+            $update = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
+            $update->execute([$user['user_id']]);
+            
+            // Redirect berdasarkan role
+            if ($user['role'] === 'Admin') {
+                header('Location: /appointments/');
+            } else {
+                header('Location: /owners/portal/');
+            }
+            exit;
         } else {
-            $error = 'Username atau password salah';
+            $error = 'Username/Email atau Password salah!';
         }
+    } catch (PDOException $e) {
+        $error = 'Terjadi kesalahan sistem. Silakan coba lagi.';
     }
 }
 ?>
@@ -52,110 +67,79 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - VetClinic</title>
-    
-    <!-- Tailwind CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
-    <link href="/assets/css/style.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-100">
-    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-            <div class="text-center mb-8">
-                <h2 class="text-3xl font-bold text-gray-800">VetClinic</h2>
-                <p class="text-gray-600 mt-2">Sistem Manajemen Klinik Hewan</p>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- Logo & Title -->
+        <div class="text-center mb-8">
+            <div class="inline-block p-4 bg-white rounded-full shadow-lg mb-4">
+                <i class="fas fa-paw text-purple-600 text-4xl"></i>
             </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">VetClinic Management</h1>
+            <p class="text-gray-600">Masuk ke akun Anda</p>
+        </div>
 
+        <!-- Login Form -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
             <?php if ($error): ?>
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <span class="block sm:inline"><?php echo $error; ?></span>
-                </div>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <span><?= htmlspecialchars($error) ?></span>
+            </div>
             <?php endif; ?>
 
-            <form method="POST" action="" class="space-y-6">
-                <div>
-                    <label for="username" class="block text-sm font-medium text-gray-700">
-                        Username
+            <form method="POST" action="">
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        <i class="fas fa-user mr-2 text-purple-600"></i>Username atau Email
                     </label>
-                    <div class="mt-1">
-                        <input id="username" name="username" type="text" required
-                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                                      focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
+                    <input type="text" name="username" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                        placeholder="Masukkan username atau email">
                 </div>
 
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">
-                        Password
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        <i class="fas fa-lock mr-2 text-purple-600"></i>Password
                     </label>
-                    <div class="mt-1">
-                        <input id="password" name="password" type="password" required
-                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                                      focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
+                    <input type="password" name="password" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                        placeholder="Masukkan password">
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <input id="remember" name="remember" type="checkbox" 
-                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                        <label for="remember" class="ml-2 block text-sm text-gray-900">
-                            Ingat saya
-                        </label>
-                    </div>
-                </div>
-
-                <div>
-                    <button type="submit" 
-                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm 
-                                   text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 
-                                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <i class="fas fa-sign-in-alt mr-2"></i> Login
-                    </button>
-                </div>
+                <button type="submit" 
+                    class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Masuk
+                </button>
             </form>
 
-            <div class="mt-6">
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-white text-gray-500">
-                            Belum punya akun?
-                        </span>
-                    </div>
-                </div>
-                <div class="mt-4 text-center">
-                    <a href="register.php" class="font-medium text-blue-600 hover:text-blue-500">
-                        Daftar disini
-                    </a>
-                </div>
-            </div>
-
-            <div class="mt-6">
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-white text-gray-500">
-                            VetClinic Management System
-                        </span>
-                    </div>
-                </div>
+            <div class="mt-6 text-center">
+                <p class="text-gray-600">Belum punya akun?</p>
+                <a href="register.php" class="text-purple-600 hover:text-purple-800 font-semibold">
+                    Daftar sebagai Owner <i class="fas fa-arrow-right ml-1"></i>
+                </a>
             </div>
         </div>
-    </div>
 
-    <!-- Sweet Alert -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <!-- Custom JavaScript -->
-    <script src="/assets/js/main.js"></script>
+        <!-- Info Box -->
+        <div class="mt-6 bg-white rounded-lg p-4 shadow-md">
+            <div class="text-sm text-gray-600 space-y-2">
+                <p><i class="fas fa-info-circle text-blue-500 mr-2"></i><strong>Login sebagai:</strong></p>
+                <ul class="ml-6 space-y-1">
+                    <li><i class="fas fa-user-shield text-red-500 mr-2"></i>Admin untuk kelola klinik</li>
+                    <li><i class="fas fa-user text-purple-500 mr-2"></i>Owner untuk kelola hewan peliharaan</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Back to Home -->
+        <div class="text-center mt-6">
+            <a href="/landing.php" class="text-gray-600 hover:text-purple-600 transition">
+                <i class="fas fa-home mr-2"></i>Kembali ke Beranda
+            </a>
+        </div>
+    </div>
 </body>
 </html>

@@ -233,10 +233,6 @@ $is_logged_in = isset($_SESSION['user_id']);
                         <a href="/appointments/">Janji Temu</a>
                     </li>
                     <li>
-                        <i class="fas fa-pills"></i>
-                        <a href="/inventory/">Inventori Obat</a>
-                    </li>
-                    <li>
                         <i class="fas fa-notes-medical"></i>
                         <a href="/medical-records/">Rekam Medis</a>
                     </li>

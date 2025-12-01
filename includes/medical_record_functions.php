@@ -83,12 +83,12 @@ function get_medical_record($pdo, $record_id) {
             SELECT 
                 mr.*,
                 mr.tanggal_kunjungan as tanggal,
-                mr.diagnosa as diagnosis,
+                mr.diagnosis,
+                mr.resep,
                 mr.catatan_dokter as catatan,
                 'Active' as status,
                 mr.tanggal_kunjungan as created_at,
-                0 as biaya,
-                '' as resep,
+                mr.biaya,
                 NULL as created_by,
                 NULL as updated_by,
                 NULL as updated_at,
@@ -108,10 +108,10 @@ function get_medical_record($pdo, $record_id) {
                 a.jam_appointment as appointment_time
             FROM medical_record mr
             JOIN pet p ON mr.pet_id = p.pet_id
-            JOIN owner o ON p.owner_id = o.owner_id
+            JOIN users o ON p.owner_id = o.user_id
             JOIN veterinarian v ON mr.dokter_id = v.dokter_id
             LEFT JOIN appointment a ON mr.appointment_id = a.appointment_id
-            WHERE mr.rekam_id = ?
+            WHERE mr.record_id = ?
         ");
         
         $stmt->execute([$record_id]);

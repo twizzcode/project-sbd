@@ -7,8 +7,10 @@ if (session_status() === PHP_SESSION_NONE) {
 if (isset($_SESSION['user_id'])) {
     if ($_SESSION['role'] === 'Owner') {
         header("Location: /owners/portal/");
-    } else {
+    } elseif ($_SESSION['role'] === 'Admin') {
         header("Location: /dashboard/");
+    } else {
+        header("Location: /landing.php");
     }
 } else {
     // Show landing page

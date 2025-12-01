@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once '../auth/check_auth.php';
-require_once '../config/database.php';
-require_once '../includes/functions.php';
+require_once '../../auth/check_auth.php';
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
 
 // Get owner ID
 $owner_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -11,14 +11,12 @@ $owner_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $stmt = $pdo->prepare("
     SELECT o.*, 
            COUNT(DISTINCT p.pet_id) as total_pets,
-           COUNT(DISTINCT a.appointment_id) as total_appointments,
-           SUM(al.subtotal) as total_revenue
-    FROM owner o
-    LEFT JOIN pet p ON o.owner_id = p.owner_id
-    LEFT JOIN appointment a ON o.owner_id = a.owner_id
-    LEFT JOIN appointment_layanan al ON a.appointment_id = al.appointment_id
-    WHERE o.owner_id = ?
-    GROUP BY o.owner_id
+           COUNT(DISTINCT a.appointment_id) as total_appointments
+    FROM users o
+    LEFT JOIN pet p ON o.user_id = p.owner_id
+    LEFT JOIN appointment a ON o.user_id = a.owner_id
+    WHERE o.user_id = ? AND o.role = 'Owner'
+    GROUP BY o.user_id
 ");
 $stmt->execute([$owner_id]);
 $owner = $stmt->fetch();
@@ -32,11 +30,9 @@ if (!$owner) {
 // Get owner's pets
 $stmt = $pdo->prepare("
     SELECT p.*, 
-           COUNT(DISTINCT a.appointment_id) as total_visits,
-           COUNT(DISTINCT v.vaksinasi_id) as total_vaccinations
+           COUNT(DISTINCT a.appointment_id) as total_visits
     FROM pet p
     LEFT JOIN appointment a ON p.pet_id = a.pet_id
-    LEFT JOIN vaksinasi v ON p.pet_id = v.pet_id
     WHERE p.owner_id = ?
     GROUP BY p.pet_id
     ORDER BY p.tanggal_registrasi DESC
@@ -48,13 +44,10 @@ $pets = $stmt->fetchAll();
 $stmt = $pdo->prepare("
     SELECT a.*,
            p.nama_hewan,
-           v.nama_dokter,
-           GROUP_CONCAT(s.nama_layanan SEPARATOR ', ') as layanan
+           v.nama_dokter
     FROM appointment a
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    LEFT JOIN appointment_layanan al ON a.appointment_id = al.appointment_id
-    LEFT JOIN service s ON al.layanan_id = s.layanan_id
     WHERE a.owner_id = ?
     GROUP BY a.appointment_id
     ORDER BY a.tanggal_appointment DESC
@@ -65,7 +58,7 @@ $recent_appointments = $stmt->fetchAll();
 
 $page_title = 'Detail Pemilik: ' . $owner['nama_lengkap'];
 
-include '../includes/header.php';
+include '../../includes/header.php';
 ?>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -77,15 +70,15 @@ include '../includes/header.php';
                     <div>
                         <h2 class="text-2xl font-bold text-gray-800"><?php echo htmlspecialchars($owner['nama_lengkap']); ?></h2>
                         <p class="text-gray-600">
-                            Terdaftar: <?php echo format_tanggal($owner['tanggal_registrasi']); ?>
+                            Terdaftar: <?php echo isset($owner['tanggal_registrasi']) ? format_tanggal($owner['tanggal_registrasi']) : '-'; ?>
                         </p>
                     </div>
                     <div class="flex gap-2">
-                        <a href="edit.php?id=<?php echo $owner['owner_id']; ?>" 
+                        <a href="edit.php?id=<?php echo $owner['user_id']; ?>" 
                            class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
                             <i class="fas fa-edit mr-2"></i> Edit
                         </a>
-                        <button onclick="confirmDelete(<?php echo $owner['owner_id']; ?>, '<?php echo $owner['nama_lengkap']; ?>')"
+                        <button onclick="confirmDelete(<?php echo $owner['user_id']; ?>, '<?php echo htmlspecialchars($owner['nama_lengkap']); ?>')"
                                 class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg">
                             <i class="fas fa-trash mr-2"></i> Hapus
                         </button>
@@ -122,10 +115,6 @@ include '../includes/header.php';
                                 <p class="text-sm text-blue-100">Total Kunjungan</p>
                                 <p class="text-2xl font-bold text-white"><?php echo $owner['total_appointments']; ?></p>
                             </div>
-                            <div class="bg-blue-500 p-4 rounded-lg col-span-2">
-                                <p class="text-sm text-blue-100">Total Pembayaran</p>
-                                <p class="text-2xl font-bold text-white"><?php echo format_rupiah($owner['total_revenue'] ?? 0); ?></p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -133,7 +122,7 @@ include '../includes/header.php';
                 <?php if ($owner['catatan']): ?>
                 <div class="mt-6">
                     <h3 class="text-lg font-semibold mb-3">Catatan</h3>
-                    <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($owner['catatan'])); ?></p>
+                    <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($owner['catatan'] ?? '-')); ?></p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -183,9 +172,6 @@ include '../includes/header.php';
                                 <div class="mt-2 flex gap-4 text-sm">
                                     <span class="text-gray-600">
                                         <i class="fas fa-calendar-check"></i> <?php echo $pet['total_visits']; ?> kunjungan
-                                    </span>
-                                    <span class="text-gray-600">
-                                        <i class="fas fa-syringe"></i> <?php echo $pet['total_vaccinations']; ?> vaksinasi
                                     </span>
                                 </div>
                                 <div class="mt-3">
@@ -291,4 +277,4 @@ function get_appointment_border_color($status) {
 ?>
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php include '../../includes/footer.php'; ?>

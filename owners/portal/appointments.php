@@ -124,7 +124,7 @@ foreach ($appointments as $apt) {
                         <?php if ($apt['catatan']): ?>
                         <div class="mt-3">
                             <p class="text-gray-500 text-sm mb-1">Notes</p>
-                            <p class="text-gray-700 text-sm"><?= htmlspecialchars($apt['catatan']) ?></p>
+                            <p class="text-gray-700 text-sm"><?= htmlspecialchars($apt['catatan'] ?? '-') ?></p>
                         </div>
                         <?php endif; ?>
                     </div>

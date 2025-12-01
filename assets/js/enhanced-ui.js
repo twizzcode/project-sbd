@@ -3,13 +3,13 @@
  * Smooth interactions and user experience enhancements
  */
 
-(function() {
+(function () {
     'use strict';
 
     // ===========================
     // 1. TOAST NOTIFICATION SYSTEM
     // ===========================
-    window.showToast = function(message, type = 'success', duration = 3000) {
+    window.showToast = function (message, type = 'success', duration = 3000) {
         // Create toast container if it doesn't exist
         let container = document.querySelector('.toast-container');
         if (!container) {
@@ -56,7 +56,7 @@
     // ===========================
     // 3. SMOOTH FORM VALIDATION
     // ===========================
-    window.validateForm = function(formElement) {
+    window.validateForm = function (formElement) {
         let isValid = true;
         const inputs = formElement.querySelectorAll('[required]');
 
@@ -74,7 +74,7 @@
             if (!input.value.trim()) {
                 isValid = false;
                 input.classList.add('error');
-                
+
                 if (formGroup) {
                     const error = document.createElement('div');
                     error.className = 'form-error';
@@ -87,11 +87,14 @@
         return isValid;
     };
 
-    // Auto-attach to forms
-    document.addEventListener('DOMContentLoaded', function() {
+    // DISABLED: Auto-attach validation was preventing form submissions
+    // Forms now use native HTML5 validation instead
+    // Keep validateForm() function available for manual use if needed
+    /*
+    document.addEventListener('DOMContentLoaded', function () {
         const forms = document.querySelectorAll('form');
         forms.forEach(form => {
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', function (e) {
                 // Skip validation for delete forms or forms with novalidate
                 if (this.hasAttribute('novalidate') || this.querySelector('[name="_method"][value="DELETE"]')) {
                     return true;
@@ -105,11 +108,12 @@
             });
         });
     });
+    */
 
     // ===========================
     // 4. LOADING STATES
     // ===========================
-    window.showLoading = function(element, text = 'Loading...') {
+    window.showLoading = function (element, text = 'Loading...') {
         const originalContent = element.innerHTML;
         element.dataset.originalContent = originalContent;
         element.disabled = true;
@@ -119,7 +123,7 @@
         `;
     };
 
-    window.hideLoading = function(element) {
+    window.hideLoading = function (element) {
         if (element.dataset.originalContent) {
             element.innerHTML = element.dataset.originalContent;
             element.disabled = false;
@@ -127,23 +131,34 @@
         }
     };
 
-    // Auto-attach to form submit buttons
-    document.addEventListener('DOMContentLoaded', function() {
+    // DISABLED: Auto-attach loading state was interfering with forms
+    // Can still manually call showLoading() and hideLoading() if needed
+    /*
+    document.addEventListener('DOMContentLoaded', function () {
         const forms = document.querySelectorAll('form');
         forms.forEach(form => {
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
-                form.addEventListener('submit', function() {
+                form.addEventListener('submit', function (e) {
+                    // Don't show loading if validation failed (default prevented)
+                    if (e.defaultPrevented) return;
+
+                    // Double check validation just in case
+                    if (typeof validateForm === 'function' && !validateForm(this)) {
+                        return;
+                    }
+
                     showLoading(submitBtn, 'Processing...');
                 });
             }
         });
     });
+    */
 
     // ===========================
     // 5. CONFIRM DIALOGS
     // ===========================
-    window.confirmAction = function(message, callback) {
+    window.confirmAction = function (message, callback) {
         if (confirm(message)) {
             if (typeof callback === 'function') {
                 callback();
@@ -154,7 +169,7 @@
     };
 
     // Enhance delete buttons
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const deleteButtons = document.querySelectorAll('[onclick*="confirmDelete"], .btn-danger, [class*="delete"]');
         deleteButtons.forEach(btn => {
             if (btn.onclick && btn.onclick.toString().includes('confirmDelete')) {
@@ -163,7 +178,7 @@
 
             const form = btn.closest('form');
             if (form && (form.method === 'POST' || form.querySelector('[name="_method"]'))) {
-                btn.addEventListener('click', function(e) {
+                btn.addEventListener('click', function (e) {
                     if (!this.hasAttribute('data-confirmed')) {
                         e.preventDefault();
                         if (confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
@@ -179,10 +194,10 @@
     // ===========================
     // 6. SMOOTH SCROLL
     // ===========================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const smoothScrollLinks = document.querySelectorAll('a[href^="#"]');
         smoothScrollLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
+            link.addEventListener('click', function (e) {
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
                     e.preventDefault();
@@ -198,12 +213,12 @@
     // ===========================
     // 7. DARK MODE TOGGLE
     // ===========================
-    window.toggleDarkMode = function() {
+    window.toggleDarkMode = function () {
         const html = document.documentElement;
         const body = document.body;
         const toggle = document.getElementById('darkModeToggle');
         const isDark = html.getAttribute('data-theme') === 'dark';
-        
+
         if (isDark) {
             // Switch to light mode
             html.removeAttribute('data-theme');
@@ -224,7 +239,7 @@
     };
 
     // Initialize theme immediately (before DOMContentLoaded)
-    (function() {
+    (function () {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
@@ -235,10 +250,10 @@
     })();
 
     // Apply saved theme on load and ensure toggle UI is synced
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const savedTheme = localStorage.getItem('theme');
         const toggle = document.getElementById('darkModeToggle');
-        
+
         if (savedTheme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
             if (document.body) {
@@ -262,14 +277,14 @@
     // ===========================
     // 8. TOOLTIP INITIALIZATION
     // ===========================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const elementsWithTitle = document.querySelectorAll('[title]');
         elementsWithTitle.forEach(el => {
             if (!el.classList.contains('tooltip')) {
                 const title = el.getAttribute('title');
                 el.removeAttribute('title');
                 el.classList.add('tooltip');
-                
+
                 const tooltipText = document.createElement('span');
                 tooltipText.className = 'tooltip-text';
                 tooltipText.textContent = title;
@@ -281,7 +296,7 @@
     // ===========================
     // 9. AUTO-HIDE ALERTS
     // ===========================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const alerts = document.querySelectorAll('.alert, [class*="alert-"]');
         alerts.forEach(alert => {
             setTimeout(() => {
@@ -295,7 +310,7 @@
     // ===========================
     // 10. TABLE ENHANCEMENTS
     // ===========================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const tables = document.querySelectorAll('table');
         tables.forEach(table => {
             // Add table class if not present
@@ -315,7 +330,7 @@
             const rows = table.querySelectorAll('tbody tr');
             rows.forEach(row => {
                 row.style.cursor = 'pointer';
-                row.addEventListener('click', function(e) {
+                row.addEventListener('click', function (e) {
                     // Don't trigger if clicking on a button or link
                     if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A' && !e.target.closest('button') && !e.target.closest('a')) {
                         const detailLink = this.querySelector('a[href*="detail"]');
@@ -331,7 +346,7 @@
     // ===========================
     // 11. CARD STAGGER ANIMATION
     // ===========================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const cards = document.querySelectorAll('.card');
         cards.forEach((card, index) => {
             card.style.animationDelay = `${index * 0.05}s`;
@@ -341,15 +356,15 @@
     // ===========================
     // 12. SEARCH ENHANCEMENT
     // ===========================
-    window.initSearch = function(inputSelector, targetSelector) {
+    window.initSearch = function (inputSelector, targetSelector) {
         const searchInput = document.querySelector(inputSelector);
         const searchTargets = document.querySelectorAll(targetSelector);
 
         if (!searchInput || !searchTargets.length) return;
 
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', function () {
             const query = this.value.toLowerCase();
-            
+
             searchTargets.forEach(target => {
                 const text = target.textContent.toLowerCase();
                 if (text.includes(query)) {
@@ -372,7 +387,7 @@
 
     function showEmptyState(container, message) {
         if (container.querySelector('.empty-state')) return;
-        
+
         const emptyState = document.createElement('div');
         emptyState.className = 'empty-state';
         emptyState.innerHTML = `
@@ -395,13 +410,13 @@
     // ===========================
     // 13. PROGRESS BAR ANIMATION
     // ===========================
-    window.animateProgress = function(element, targetPercent) {
+    window.animateProgress = function (element, targetPercent) {
         const progressBar = element.querySelector('.progress-bar');
         if (!progressBar) return;
 
         let current = 0;
         const increment = targetPercent / 50;
-        
+
         const interval = setInterval(() => {
             current += increment;
             if (current >= targetPercent) {
@@ -413,7 +428,7 @@
     };
 
     // Auto-animate progress bars on page load
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const progressBars = document.querySelectorAll('.progress');
         progressBars.forEach(progress => {
             const bar = progress.querySelector('.progress-bar');
@@ -428,7 +443,7 @@
     // ===========================
     // 14. COPY TO CLIPBOARD
     // ===========================
-    window.copyToClipboard = function(text) {
+    window.copyToClipboard = function (text) {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(text).then(() => {
                 showToast('Copied to clipboard!', 'success', 2000);
@@ -447,7 +462,7 @@
     // ===========================
     // 15. KEYBOARD SHORTCUTS
     // ===========================
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         // Ctrl/Cmd + K for search focus
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
@@ -467,7 +482,7 @@
     // ===========================
     // 16. IMAGE LAZY LOADING
     // ===========================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         if ('IntersectionObserver' in window) {
             const imageObserver = new IntersectionObserver((entries, observer) => {
                 entries.forEach(entry => {
@@ -488,7 +503,7 @@
     // ===========================
     // 17. PRINT FUNCTIONALITY
     // ===========================
-    window.printSection = function(selector) {
+    window.printSection = function (selector) {
         const element = document.querySelector(selector);
         if (!element) return;
 
@@ -500,7 +515,7 @@
         printWindow.document.write(element.innerHTML);
         printWindow.document.write('</body></html>');
         printWindow.document.close();
-        
+
         setTimeout(() => {
             printWindow.print();
             printWindow.close();

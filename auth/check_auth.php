@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 if (!isset($_SESSION['user_id'])) {
     if (!headers_sent()) {
         header('Location: /auth/login.php');
-        exit();
+        exit;
     } else {
         echo '<script>window.location.href = "/auth/login.php";</script>';
         exit();
@@ -22,6 +22,13 @@ $owner_allowed_paths = [
     '/owners/portal/',
     '/auth/logout.php',
     '/api/dashboard_stats.php'
+];
+
+$admin_allowed_paths = [
+    '/dashboard/',
+    '/auth/logout.php',
+    '/api/',
+    '/assets/'
 ];
 
 // Check if Owner is trying to access admin areas
@@ -48,9 +55,15 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'Owner') {
     }
 }
 
-// Check role-based access
+// Check if Admin is trying to access owner portal
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin') {
+    // Allow admin to access everything
+    // No restrictions for admin
+}
+
+// Check role-based access (Admin only now since Staff removed)
 function check_role($required_role) {
-    if ($_SESSION['role'] !== $required_role && $_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'Staff') {
+    if ($_SESSION['role'] !== $required_role && $_SESSION['role'] !== 'Admin') {
         header('HTTP/1.0 403 Forbidden');
         die('Access denied');
     }
@@ -58,7 +71,7 @@ function check_role($required_role) {
 
 // Check if user has any of the required roles
 function check_roles($required_roles) {
-    if (!in_array($_SESSION['role'], $required_roles) && $_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'Staff') {
+    if (!in_array($_SESSION['role'], $required_roles) && $_SESSION['role'] !== 'Admin') {
         header('HTTP/1.0 403 Forbidden');
         die('Access denied');
     }

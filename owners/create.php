@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once '../auth/check_auth.php';
-require_once '../config/database.php';
-require_once '../includes/functions.php';
+require_once '../../auth/check_auth.php';
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
 
 $page_title = 'Tambah Pemilik Hewan';
 $errors = [];
@@ -14,13 +14,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // Get and sanitize input
+    $username = clean_input($_POST['username']);
+    $password = $_POST['password'];
     $nama_lengkap = clean_input($_POST['nama_lengkap']);
     $alamat = clean_input($_POST['alamat']);
     $no_telepon = clean_input($_POST['no_telepon']);
     $email = clean_input($_POST['email']);
-    $catatan = clean_input($_POST['catatan']);
+    $catatan = clean_input($_POST['catatan'] ?? '');
 
     // Validate required fields
+    if (empty($username)) {
+        $errors[] = 'Username wajib diisi';
+    }
+    
+    if (empty($password)) {
+        $errors[] = 'Password wajib diisi';
+    } elseif (strlen($password) < 6) {
+        $errors[] = 'Password minimal 6 karakter';
+    }
+    
     if (empty($nama_lengkap)) {
         $errors[] = 'Nama lengkap wajib diisi';
     }
@@ -30,14 +42,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } elseif (!preg_match('/^[0-9]{10,15}$/', $no_telepon)) {
         $errors[] = 'Format nomor telepon tidak valid';
     }
-
-    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    
+    if (empty($email)) {
+        $errors[] = 'Email wajib diisi';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Format email tidak valid';
     }
 
-    // Check if email already exists
+    // Check if username or email already exists
+    if (!empty($username)) {
+        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        if ($stmt->rowCount() > 0) {
+            $errors[] = 'Username sudah digunakan';
+        }
+    }
+    
     if (!empty($email)) {
-        $stmt = $pdo->prepare("SELECT owner_id FROM owner WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->rowCount() > 0) {
             $errors[] = 'Email sudah terdaftar';
@@ -47,12 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // If no errors, insert into database
     if (empty($errors)) {
         try {
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            
             $stmt = $pdo->prepare("
-                INSERT INTO owner (nama_lengkap, alamat, no_telepon, email, catatan)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (username, password, email, nama_lengkap, role, no_telepon, alamat, status)
+                VALUES (?, ?, ?, ?, 'Owner', ?, ?, 'Aktif')
             ");
             
-            $stmt->execute([$nama_lengkap, $alamat, $no_telepon, $email, $catatan]);
+            $stmt->execute([$username, $hashed_password, $email, $nama_lengkap, $no_telepon, $alamat]);
             
             // Set success message and redirect
             $_SESSION['success'] = 'Data pemilik berhasil ditambahkan';
@@ -65,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-include '../includes/header.php';
+include '../../includes/header.php';
 ?>
 
 <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
@@ -86,11 +110,38 @@ include '../includes/header.php';
 
         <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2">
+                Username <span class="text-red-500">*</span>
+            </label>
+            <input type="text" name="username" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Password <span class="text-red-500">*</span>
+            </label>
+            <input type="password" name="password" required minlength="6"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p class="text-sm text-gray-500 mt-1">Minimal 6 karakter</p>
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
                 Nama Lengkap <span class="text-red-500">*</span>
             </label>
             <input type="text" name="nama_lengkap" required
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                    value="<?php echo isset($_POST['nama_lengkap']) ? htmlspecialchars($_POST['nama_lengkap']) : ''; ?>">
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Email <span class="text-red-500">*</span>
+            </label>
+            <input type="email" name="email" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
         </div>
 
         <div class="mb-4">
@@ -98,7 +149,7 @@ include '../includes/header.php';
                 Alamat
             </label>
             <textarea name="alamat" rows="3"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             ><?php echo isset($_POST['alamat']) ? htmlspecialchars($_POST['alamat']) : ''; ?></textarea>
         </div>
 
@@ -143,4 +194,4 @@ include '../includes/header.php';
     </form>
 </div>
 
-<?php include '../includes/footer.php'; ?>
+<?php include '../../includes/footer.php'; ?>

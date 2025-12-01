@@ -26,52 +26,28 @@ $error_message = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nama_hewan = trim($_POST['nama_hewan'] ?? '');
-    $jenis = $_POST['jenis'] ?? '';
+    $jenis = trim($_POST['jenis'] ?? '');
     $ras = trim($_POST['ras'] ?? '');
-    $jenis_kelamin = $_POST['jenis_kelamin'] ?? '';
+    $jenis_kelamin = trim($_POST['jenis_kelamin'] ?? '');
     $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
     $berat_badan = $_POST['berat_badan'] ?? null;
     $warna = trim($_POST['warna'] ?? '');
     $ciri_khusus = trim($_POST['ciri_khusus'] ?? '');
     
     // Validation
-    if (empty($nama_hewan) || empty($jenis) || empty($jenis_kelamin)) {
-        $error_message = 'Nama hewan, jenis, dan jenis kelamin wajib diisi.';
+    if (empty($nama_hewan)) {
+        $error_message = 'Nama hewan wajib diisi.';
+    } elseif (empty($jenis)) {
+        $error_message = 'Jenis hewan wajib dipilih.';
+    } elseif (empty($jenis_kelamin)) {
+        $error_message = 'Jenis kelamin wajib dipilih.';
     } else {
         try {
-            $foto_url = $pet['foto_url']; // Keep existing photo
-            
-            // Handle photo upload if new file provided
-            if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
-                $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-                $file_type = $_FILES['foto']['type'];
-                
-                if (in_array($file_type, $allowed_types)) {
-                    $upload_dir = __DIR__ . '/../../uploads/pets/';
-                    if (!file_exists($upload_dir)) {
-                        mkdir($upload_dir, 0755, true);
-                    }
-                    
-                    // Delete old photo if exists
-                    if ($pet['foto_url'] && file_exists($upload_dir . basename($pet['foto_url']))) {
-                        unlink($upload_dir . basename($pet['foto_url']));
-                    }
-                    
-                    $file_extension = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
-                    $new_filename = 'pet_' . $_SESSION['owner_id'] . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $new_filename;
-                    
-                    if (move_uploaded_file($_FILES['foto']['tmp_name'], $upload_path)) {
-                        $foto_url = 'pets/' . $new_filename;
-                    }
-                }
-            }
-            
             // Update pet
             $stmt = $pdo->prepare("
                 UPDATE pet 
                 SET nama_hewan = ?, jenis = ?, ras = ?, jenis_kelamin = ?, tanggal_lahir = ?, 
-                    berat_badan = ?, warna = ?, ciri_khusus = ?, foto_url = ?
+                    berat_badan = ?, warna = ?, ciri_khusus = ?
                 WHERE pet_id = ? AND owner_id = ?
             ");
             
@@ -84,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $berat_badan ?: null,
                 $warna ?: null,
                 $ciri_khusus ?: null,
-                $foto_url,
                 $pet_id,
                 $_SESSION['owner_id']
             ]);
@@ -136,18 +111,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <!-- Form -->
-    <form method="POST" enctype="multipart/form-data" class="bg-white rounded-xl shadow-lg p-8">
+    <form method="POST" class="bg-white rounded-xl shadow-lg p-8">
         
-        <!-- Current Photo -->
-        <?php if ($pet['foto_url']): ?>
-        <div class="mb-6 text-center">
-            <p class="text-sm text-gray-600 mb-2">Current Photo:</p>
-            <img src="/uploads/<?= htmlspecialchars($pet['foto_url']) ?>" 
-                 alt="<?= htmlspecialchars($pet['nama_hewan']) ?>"
-                 class="w-32 h-32 rounded-full object-cover mx-auto border-4 border-indigo-100"
-                 onerror="this.style.display='none'">
-        </div>
-        <?php endif; ?>
+        <!-- Current Photo Removed -->
 
         <!-- Basic Information -->
         <div class="mb-8">
@@ -258,23 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <!-- Photo Upload -->
-        <div class="mb-8">
-            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <span class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">3</span>
-                Update Foto (Opsional)
-            </h3>
-            
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-400 transition">
-                <input type="file" name="foto" id="foto" accept="image/*" class="hidden" onchange="previewImage(this)">
-                <label for="foto" class="cursor-pointer">
-                    <div id="preview" class="mb-4"></div>
-                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3 block"></i>
-                    <p class="text-gray-600 font-medium mb-1">Klik untuk upload foto baru</p>
-                    <p class="text-sm text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                </label>
-            </div>
-        </div>
+        <!-- Photo Upload Removed -->
 
         <!-- Submit Buttons -->
         <div class="flex items-center justify-end space-x-4 pt-6 border-t">

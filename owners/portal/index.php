@@ -10,20 +10,11 @@ $pets = getOwnerPetsWithHealth($pdo, $_SESSION['owner_id']);
 // Calculate statistics
 $total_pets = count($pets);
 $upcoming_appointments = 0;
-$vaccination_due = 0;
 
 foreach ($pets as $pet) {
     if ($pet['next_appointment']) {
         $days_until = (new DateTime($pet['next_appointment']))->diff(new DateTime())->days;
         if ($days_until <= 7) $upcoming_appointments++;
-    }
-    if ($pet['next_vaccination']) {
-        $next_vac = new DateTime($pet['next_vaccination']);
-        $today = new DateTime();
-        if ($next_vac >= $today) {
-            $days_until = $next_vac->diff($today)->days;
-            if ($days_until <= 14) $vaccination_due++;
-        }
     }
 }
 
@@ -67,19 +58,6 @@ require_once __DIR__ . '/../includes/owner_header.php';
                     </div>
                 </div>
             </div>
-
-            <!-- Vaccination Due -->
-            <div class="bg-white rounded-xl shadow-lg p-6 hover-scale">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Vaccination Due</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1"><?= $vaccination_due ?></p>
-                    </div>
-                    <div class="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-syringe text-yellow-600 text-2xl"></i>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Pets Grid -->
@@ -111,25 +89,12 @@ require_once __DIR__ . '/../includes/owner_header.php';
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex-1">
                             <h3 class="text-2xl font-bold"><?= htmlspecialchars($pet['nama_hewan']) ?></h3>
-                            <p class="text-indigo-100"><?= htmlspecialchars($pet['ras']) ?></p>
+                            <p class="text-indigo-100"><?= htmlspecialchars($pet['ras'] ?? '-') ?></p>
                         </div>
                         <div class="ml-4">
-                            <?php if ($pet['foto_url']): ?>
-                                <?php 
-                                // Check if foto_url is external URL or local path
-                                $foto_src = (strpos($pet['foto_url'], 'http') === 0) 
-                                    ? $pet['foto_url'] 
-                                    : '/uploads/' . $pet['foto_url'];
-                                ?>
-                                <img src="<?= $foto_src ?>" 
-                                     alt="<?= htmlspecialchars($pet['nama_hewan']) ?>"
-                                     class="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
-                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-16 h-16 bg-white rounded-full flex items-center justify-center\'><i class=\'fas fa-<?= strtolower($pet['jenis']) === 'anjing' ? 'dog' : 'cat' ?> text-indigo-600 text-2xl\'></i></div>';">
-                            <?php else: ?>
-                                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center">
-                                    <i class="fas fa-<?= strtolower($pet['jenis']) === 'anjing' ? 'dog' : 'cat' ?> text-indigo-600 text-2xl"></i>
-                                </div>
-                            <?php endif; ?>
+                            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+                                <i class="fas fa-paw text-indigo-600 text-2xl"></i>
+                            </div>
                         </div>
                     </div>
                     <div class="flex items-center space-x-4 text-sm">
@@ -160,16 +125,6 @@ require_once __DIR__ . '/../includes/owner_header.php';
                         </div>
                         <?php endif; ?>
 
-                        <?php if ($pet['next_vaccination']): ?>
-                        <div class="flex items-center text-sm">
-                            <i class="fas fa-syringe text-gray-400 w-5"></i>
-                            <span class="text-gray-600 ml-2">Next Vaccine:</span>
-                            <span class="text-gray-800 ml-auto font-medium">
-                                <?= formatIndonesianDate($pet['next_vaccination']) ?>
-                            </span>
-                        </div>
-                        <?php endif; ?>
-
                         <?php if ($pet['next_appointment']): ?>
                         <div class="flex items-center text-sm">
                             <i class="fas fa-calendar text-gray-400 w-5"></i>
@@ -190,8 +145,8 @@ require_once __DIR__ . '/../includes/owner_header.php';
                     <!-- Action Button -->
                     <a href="pet_profile.php?id=<?= $pet['pet_id'] ?>" 
                        class="block w-full text-center px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium">
-                        <i class="fas fa-chart-line mr-2"></i>
-                        View Health Timeline
+                        <i class="fas fa-eye mr-2"></i>
+                        View Profile
                     </a>
                 </div>
             </div>

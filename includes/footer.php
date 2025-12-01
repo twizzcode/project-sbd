@@ -3,23 +3,18 @@
         </div>
     </div>
 
-    <!-- jQuery -->
+    <!-- jQuery - Required for DataTables -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- DataTables -->
+    <!-- DataTables - For table pagination and search -->
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     
-    <!-- Sweet Alert -->
+    <!-- Sweet Alert - For confirmation dialogs -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Custom JavaScript -->
-    <script src="/assets/js/enhanced-ui.js"></script>
-    <script src="/assets/js/main.js"></script>
-    
-    <!-- SPA Router - Load after other scripts -->
-    <script src="/assets/js/spa-router.js"></script>
-    
     <?php if (isset($use_chart) && $use_chart === true): ?>
+    <!-- Chart.js for dashboard graphics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/assets/js/charts.js"></script>
     <?php endif; ?>
 

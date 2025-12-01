@@ -83,20 +83,6 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
-        
-        /* Dark mode compatibility for SPA elements */
-        [data-theme="dark"] #loadingSpinner {
-            background-color: rgba(26, 32, 44, 0.95);
-        }
-        
-        [data-theme="dark"] #loadingSpinner .spinner-container {
-            background-color: #2d3748;
-            color: #e2e8f0;
-        }
-        
-        [data-theme="dark"] .spa-progress-bar {
-            background: linear-gradient(90deg, #60a5fa, #3b82f6);
-        }
     </style>
     
     <!-- Critical Styles - Logout Button -->
@@ -165,7 +151,7 @@
     <div id="spaProgressBar" class="spa-progress-bar" style="width: 0%;"></div>
 
     <!-- Include Sidebar -->
-    <?php include '../includes/sidebar.php'; ?>
+    <?php include __DIR__ . '/sidebar.php'; ?>
 
     <div class="main-container">
         <div class="flex flex-col min-h-screen">
@@ -202,11 +188,6 @@
                                         <p class="text-xs text-gray-600">Ada 3 janji temu yang akan datang</p>
                                         <p class="text-xs text-gray-400 mt-1">2 jam yang lalu</p>
                                     </a>
-                                    <a href="/inventory/" class="block px-4 py-3 hover:bg-gray-50">
-                                        <p class="text-sm font-medium text-gray-800">Stok Obat Menipis</p>
-                                        <p class="text-xs text-gray-600">Beberapa obat perlu restok</p>
-                                        <p class="text-xs text-gray-400 mt-1">5 jam yang lalu</p>
-                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -221,11 +202,11 @@
                             
                             <!-- Dropdown Menu -->
                             <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                                <a href="/users/profile.php" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                                     <i class="fas fa-user mr-3"></i>
                                     <span>My Profile</span>
                                 </a>
-                                <a href="../auth/logout.php" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                <a href="/auth/logout.php" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                                     <i class="fas fa-sign-out-alt mr-3"></i>
                                     <span>Logout</span>
                                 </a>

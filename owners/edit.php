@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once '../auth/check_auth.php';
-require_once '../config/database.php';
-require_once '../includes/functions.php';
+require_once '../../auth/check_auth.php';
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
 
 $page_title = 'Edit Pemilik Hewan';
 $errors = [];
@@ -11,7 +11,7 @@ $errors = [];
 $owner_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Get owner data
-$stmt = $pdo->prepare("SELECT * FROM owner WHERE owner_id = ?");
+$stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ? AND role = 'Owner'");
 $stmt->execute([$owner_id]);
 $owner = $stmt->fetch();
 
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Check if email already exists (except for current owner)
     if (!empty($email)) {
-        $stmt = $pdo->prepare("SELECT owner_id FROM owner WHERE email = ? AND owner_id != ?");
+        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
         $stmt->execute([$email, $owner_id]);
         if ($stmt->rowCount() > 0) {
             $errors[] = 'Email sudah terdaftar';
@@ -62,13 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($errors)) {
         try {
             $stmt = $pdo->prepare("
-                UPDATE owner 
+                UPDATE users 
                 SET nama_lengkap = ?, 
                     alamat = ?, 
                     no_telepon = ?, 
-                    email = ?, 
-                    catatan = ?
-                WHERE owner_id = ?
+                    email = ?
+                WHERE user_id = ? AND role = 'Owner'
             ");
             
             $stmt->execute([
@@ -76,7 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $alamat,
                 $no_telepon,
                 $email,
-                $catatan,
                 $owner_id
             ]);
             
@@ -91,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-include '../includes/header.php';
+include '../../includes/header.php';
 ?>
 
 <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
@@ -125,7 +123,7 @@ include '../includes/header.php';
             </label>
             <textarea name="alamat" rows="3"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            ><?php echo htmlspecialchars($owner['alamat']); ?></textarea>
+            ><?php echo htmlspecialchars($owner['alamat'] ?? ''); ?></textarea>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -145,7 +143,7 @@ include '../includes/header.php';
                 </label>
                 <input type="email" name="email"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="<?php echo htmlspecialchars($owner['email']); ?>">
+                       value="<?php echo htmlspecialchars($owner['email'] ?? ''); ?>">
             </div>
         </div>
 
@@ -155,7 +153,7 @@ include '../includes/header.php';
             </label>
             <textarea name="catatan" rows="3"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            ><?php echo htmlspecialchars($owner['catatan']); ?></textarea>
+            ><?php echo htmlspecialchars($owner['catatan'] ?? ''); ?></textarea>
         </div>
 
         <div class="flex gap-4">
@@ -169,4 +167,4 @@ include '../includes/header.php';
     </form>
 </div>
 
-<?php include '../includes/footer.php'; ?>
+<?php include '../../includes/footer.php'; ?>

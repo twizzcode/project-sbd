@@ -1,6 +1,7 @@
 <?php
 /**
  * Owner Portal Authentication Check
+ * Updated for unified users table with role-based access
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -9,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-    header('Location: /owners/portal/login.php');
+    header('Location: /auth/login.php');
     exit;
 }
 
@@ -19,33 +20,27 @@ if ($_SESSION['role'] !== 'Owner') {
     exit;
 }
 
-// Verify owner record exists
+// Verify user record exists
 require_once __DIR__ . '/../../config/database.php';
 
-// Check if owner_id is set in session (from login)
-if (!isset($_SESSION['owner_id'])) {
-    session_destroy();
-    header('Location: /owners/portal/login.php?error=invalid_session');
-    exit;
-}
-
-$stmt = $pdo->prepare("SELECT owner_id, nama_lengkap, email, username FROM owner WHERE owner_id = ?");
-$stmt->execute([$_SESSION['owner_id']]);
+$stmt = $pdo->prepare("SELECT user_id, nama_lengkap, email, username FROM users WHERE user_id = ? AND role = 'Owner' AND status = 'Aktif'");
+$stmt->execute([$_SESSION['user_id']]);
 $owner = $stmt->fetch();
 
 if (!$owner) {
     session_destroy();
-    header('Location: /owners/portal/login.php?error=invalid_owner');
+    header('Location: /auth/login.php?error=invalid_owner');
     exit;
 }
 
 // Store/update owner info in session
-$_SESSION['owner_id'] = $owner['owner_id'];
+$_SESSION['user_id'] = $owner['user_id'];
+$_SESSION['owner_id'] = $owner['user_id']; // Backward compatibility
 $_SESSION['owner_name'] = $owner['nama_lengkap'];
 $_SESSION['owner_email'] = $owner['email'];
 $_SESSION['username'] = $owner['username'];
 
 // Update last activity
-$stmt = $pdo->prepare("UPDATE owner SET last_login = NOW() WHERE owner_id = ?");
-$stmt->execute([$owner['owner_id']]);
+$stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
+$stmt->execute([$owner['user_id']]);
 ?>

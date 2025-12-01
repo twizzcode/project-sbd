@@ -21,7 +21,7 @@ services:
     container_name: vetclinic_webserver
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "80:80"
     volumes:
       - ./:/var/www/html
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
@@ -50,6 +50,23 @@ services:
       - "3306:3306"
     networks:
       - vetclinic_network
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: vetclinic_phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+      UPLOAD_LIMIT: 50M
+    networks:
+      - vetclinic_network
+    depends_on:
+      - db
 
 # Docker Networks
 networks:

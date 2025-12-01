@@ -9,90 +9,34 @@
         </div>
     </footer>
 
+    <!-- jQuery - Minimal setup -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="../../assets/js/enhanced-ui.js"></script>
-    <script src="../../assets/js/owner_portal.js"></script>
     
     <script>
-        // ===========================
-        // OWNER PORTAL DARK MODE
-        // ===========================
-        
-        // Override toggleDarkMode to ensure it works properly in owner portal
-        window.toggleDarkMode = function() {
-            const html = document.documentElement;
-            const body = document.body;
-            const toggle = document.getElementById('darkModeToggle');
-            const isDark = html.getAttribute('data-theme') === 'dark';
-            
-            if (isDark) {
-                // Switch to light mode
-                html.removeAttribute('data-theme');
-                body.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-                if (toggle) {
-                    toggle.classList.remove('active');
-                }
-            } else {
-                // Switch to dark mode
-                html.setAttribute('data-theme', 'dark');
-                body.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-                if (toggle) {
-                    toggle.classList.add('active');
-                }
-            }
-        };
-        
-        // Initialize theme immediately (before DOMContentLoaded)
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                document.body.setAttribute('data-theme', 'dark');
-            }
-        })();
-        
-        // Apply saved theme state to toggle UI on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedTheme = localStorage.getItem('theme');
-            const toggle = document.getElementById('darkModeToggle');
-            
-            if (savedTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                document.body.setAttribute('data-theme', 'dark');
-                if (toggle) {
-                    toggle.classList.add('active');
-                }
-            } else {
-                // Ensure light mode is properly set
-                document.documentElement.removeAttribute('data-theme');
-                document.body.removeAttribute('data-theme');
-                if (toggle) {
-                    toggle.classList.remove('active');
-                }
+    // Simple smooth scroll for owner portal
+    $(document).ready(function() {
+        $('a[href^="#"]').on('click', function(e) {
+            e.preventDefault();
+            const target = $(this.getAttribute('href'));
+            if(target.length) {
+                $('html, body').animate({
+                    scrollTop: target.offset().top - 80
+                }, 500);
             }
         });
-        
-        // Owner user menu dropdown toggle
-        document.addEventListener('DOMContentLoaded', function() {
-            const ownerMenuButton = document.getElementById('ownerMenuButton');
-            const ownerMenu = document.getElementById('ownerMenu');
-            
-            if (ownerMenuButton && ownerMenu) {
-                ownerMenuButton.addEventListener('click', function(event) {
-                    event.stopPropagation();
-                    ownerMenu.classList.toggle('hidden');
-                });
-                
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function(event) {
-                    if (!ownerMenuButton.contains(event.target) && !ownerMenu.contains(event.target)) {
-                        ownerMenu.classList.add('hidden');
-                    }
-                });
+
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            $('.alert-auto-dismiss').fadeOut('slow');
+        }, 5000);
+
+        // Confirm logout
+        $('a[href*="logout"]').on('click', function(e) {
+            if (!confirm('Are you sure you want to logout?')) {
+                e.preventDefault();
             }
         });
+    });
     </script>
 </body>
 </html>

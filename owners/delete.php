@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once '../auth/check_auth.php';
-require_once '../config/database.php';
+require_once '../../auth/check_auth.php';
+require_once '../../config/database.php';
 
 // Get owner ID
 $owner_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -11,7 +11,7 @@ try {
     $pdo->beginTransaction();
 
     // Check if owner exists
-    $stmt = $pdo->prepare("SELECT owner_id FROM owner WHERE owner_id = ?");
+    $stmt = $pdo->prepare("SELECT user_id FROM users WHERE user_id = ? AND role = 'Owner'");
     $stmt->execute([$owner_id]);
     
     if ($stmt->rowCount() === 0) {
@@ -19,7 +19,7 @@ try {
     }
 
     // Delete owner (will cascade delete pets and related records)
-    $stmt = $pdo->prepare("DELETE FROM owner WHERE owner_id = ?");
+    $stmt = $pdo->prepare("DELETE FROM users WHERE user_id = ? AND role = 'Owner'");
     $stmt->execute([$owner_id]);
 
     // Commit transaction

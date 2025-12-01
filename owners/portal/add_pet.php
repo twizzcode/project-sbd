@@ -9,45 +9,27 @@ $error_message = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nama_hewan = trim($_POST['nama_hewan'] ?? '');
-    $jenis = $_POST['jenis'] ?? '';
+    $jenis = !empty($_POST['jenis']) ? $_POST['jenis'] : null;
     $ras = trim($_POST['ras'] ?? '');
-    $jenis_kelamin = $_POST['jenis_kelamin'] ?? '';
+    $jenis_kelamin = !empty($_POST['jenis_kelamin']) ? $_POST['jenis_kelamin'] : null;
     $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
     $berat_badan = $_POST['berat_badan'] ?? null;
     $warna = trim($_POST['warna'] ?? '');
     $ciri_khusus = trim($_POST['ciri_khusus'] ?? '');
     
     // Validation
-    if (empty($nama_hewan) || empty($jenis) || empty($jenis_kelamin)) {
-        $error_message = 'Nama hewan, jenis, dan jenis kelamin wajib diisi.';
+    if (empty($nama_hewan)) {
+        $error_message = 'Nama hewan wajib diisi.';
+    } elseif (empty($jenis)) {
+        $error_message = 'Jenis hewan wajib dipilih.';
+    } elseif (empty($jenis_kelamin)) {
+        $error_message = 'Jenis kelamin wajib dipilih.';
     } else {
         try {
-            // Handle photo upload if provided
-            $foto_url = null;
-            if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
-                $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-                $file_type = $_FILES['foto']['type'];
-                
-                if (in_array($file_type, $allowed_types)) {
-                    $upload_dir = __DIR__ . '/../../uploads/pets/';
-                    if (!file_exists($upload_dir)) {
-                        mkdir($upload_dir, 0755, true);
-                    }
-                    
-                    $file_extension = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
-                    $new_filename = 'pet_' . $_SESSION['owner_id'] . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $new_filename;
-                    
-                    if (move_uploaded_file($_FILES['foto']['tmp_name'], $upload_path)) {
-                        $foto_url = 'pets/' . $new_filename;
-                    }
-                }
-            }
-            
             // Insert pet
             $stmt = $pdo->prepare("
-                INSERT INTO pet (owner_id, nama_hewan, jenis, ras, jenis_kelamin, tanggal_lahir, berat_badan, warna, ciri_khusus, foto_url, status, tanggal_registrasi)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Aktif', NOW())
+                INSERT INTO pet (owner_id, nama_hewan, jenis, ras, jenis_kelamin, tanggal_lahir, berat_badan, warna, ciri_khusus, status, tanggal_registrasi)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Aktif', NOW())
             ");
             
             $stmt->execute([
@@ -59,8 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tanggal_lahir ?: null,
                 $berat_badan ?: null,
                 $warna ?: null,
-                $ciri_khusus ?: null,
-                $foto_url
+                $ciri_khusus ?: null
             ]);
             
             $success_message = 'Pet berhasil didaftarkan!';
@@ -113,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <!-- Form -->
-    <form method="POST" enctype="multipart/form-data" class="bg-white rounded-xl shadow-lg p-8">
+    <form method="POST" class="bg-white rounded-xl shadow-lg p-8">
         
         <!-- Basic Information -->
         <div class="mb-8">
@@ -232,23 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <!-- Photo Upload -->
-        <div class="mb-8">
-            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <span class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">3</span>
-                Foto (Opsional)
-            </h3>
-            
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-400 transition">
-                <input type="file" name="foto" id="foto" accept="image/*" class="hidden" onchange="previewImage(this)">
-                <label for="foto" class="cursor-pointer">
-                    <div id="preview" class="mb-4"></div>
-                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3 block"></i>
-                    <p class="text-gray-600 font-medium mb-1">Klik untuk upload foto</p>
-                    <p class="text-sm text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                </label>
-            </div>
-        </div>
+        <!-- Photo Upload Removed -->
 
         <!-- Submit Buttons -->
         <div class="flex items-center justify-end space-x-4 pt-6 border-t">

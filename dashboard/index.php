@@ -1,375 +1,335 @@
 <?php
 session_start();
-require_once '../auth/check_auth.php';
-require_once '../config/database.php';
-require_once '../includes/functions.php';
-require_once '../includes/appointment_functions.php';
+require_once __DIR__ . '/../auth/check_auth.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
 
-// Dashboard is restricted to staff only (not Owner)
+// Redirect Owner to portal
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'Owner') {
     header('Location: /owners/portal/');
     exit();
 }
 
-$page_title = 'Dashboard';
-$use_chart = true;
+// Redirect Admin to appointments
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin') {
+    header('Location: /dashboard/appointments/');
+    exit();
+}
 
-// Get today's appointments
-$today = date('Y-m-d');
-$stmt = $pdo->prepare("
-    SELECT 
-        a.appointment_id,
-        a.tanggal_appointment,
-        a.jam_appointment,
-        a.status,
-        a.jenis_layanan,
-        o.nama_lengkap as owner_name, 
-        p.nama_hewan as pet_name, 
-        v.nama_dokter
-    FROM appointment a 
-    JOIN owner o ON a.owner_id = o.owner_id
-    JOIN pet p ON a.pet_id = p.pet_id
-    JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    WHERE a.tanggal_appointment = ?
-    ORDER BY a.jam_appointment ASC
-");
-$stmt->execute([$today]);
-$appointments = $stmt->fetchAll();
-
-// Get total counts for KPI cards
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM pet WHERE status = 'Aktif'");
-$total_pets = $stmt->fetch()['total'];
-
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM owner");
-$total_owners = $stmt->fetch()['total'];
-
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM veterinarian WHERE status = 'Aktif'");
-$total_doctors = $stmt->fetch()['total'];
-
-// Calculate monthly revenue
-$stmt = $pdo->prepare("
-    SELECT SUM(al.subtotal) as total 
-    FROM appointment_layanan al
-    JOIN appointment a ON al.appointment_id = a.appointment_id 
-    WHERE MONTH(a.tanggal_appointment) = MONTH(CURRENT_DATE())
-");
-$stmt->execute();
-$monthly_revenue = $stmt->fetch()['total'] ?? 0;
-
-// Get alerts
-$alerts = [];
-
-// Low stock medicines
-$stmt = $pdo->query("
-    SELECT nama_obat, stok 
-    FROM medicine 
-    WHERE stok < 10 AND status_tersedia = 1
-    LIMIT 5
-");
-$low_stock = $stmt->fetchAll();
-
-// Upcoming vaccinations
-$stmt = $pdo->prepare("
-    SELECT v.*, p.nama_hewan, o.nama_lengkap as owner_name
-    FROM vaksinasi v
-    JOIN pet p ON v.pet_id = p.pet_id
-    JOIN owner o ON p.owner_id = o.owner_id
-    WHERE v.tanggal_vaksin BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL 7 DAY)
-    AND v.status = 'Scheduled'
-    LIMIT 5
-");
-$stmt->execute();
-$upcoming_vaccinations = $stmt->fetchAll();
-
-// Expired medicines
-$stmt = $pdo->prepare("
-    SELECT nama_obat, expired_date
-    FROM medicine
-    WHERE expired_date BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY)
-    AND status_tersedia = 1
-    LIMIT 5
-");
-$stmt->execute();
-$expiring_medicines = $stmt->fetchAll();
-
-include '../includes/header.php';
+// Default redirect
+header('Location: /auth/login.php');
+exit();
 ?>
 
-<!-- Dashboard Content -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-    <!-- Total Pets -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between">
+// Security headers
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net code.jquery.com cdn.datatables.net; style-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com cdn.datatables.net fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com data:");
+
+$page_title = 'Janji Temu';
+
+// Initialize variables
+$page = isset($_GET['page']) ? (int)clean_input($_GET['page']) : 1;
+$per_page = 10;
+$offset = ($page - 1) * $per_page;
+
+// Get filters with proper sanitization
+$search = isset($_GET['search']) ? clean_input($_GET['search']) : '';
+$status = isset($_GET['status']) ? clean_input($_GET['status']) : '';
+$date_from = isset($_GET['date_from']) ? clean_input($_GET['date_from']) : date('Y-m-d');
+$date_to = isset($_GET['date_to']) ? clean_input($_GET['date_to']) : date('Y-m-d', strtotime('+7 days'));
+$dokter_id = isset($_GET['dokter_id']) ? (int)clean_input($_GET['dokter_id']) : 0;
+
+// Validate date range
+if (!validate_date_range($date_from, $date_to)) {
+    $_SESSION['error'] = "Range tanggal tidak valid";
+    $date_from = date('Y-m-d');
+    $date_to = date('Y-m-d', strtotime('+7 days'));
+}
+
+// Build secure query with prepared statements
+$query = "
+    SELECT 
+        a.*,
+        p.nama_hewan,
+        o.nama_lengkap as owner_name,
+        o.no_telepon as owner_phone,
+        v.nama_dokter as dokter_name,
+        a.jenis_layanan as nama_layanan
+    FROM appointment a
+    JOIN pet p ON a.pet_id = p.pet_id
+    JOIN users o ON a.owner_id = o.user_id
+    JOIN veterinarian v ON a.dokter_id = v.dokter_id
+    WHERE 1=1
+";
+
+$params = [];
+
+if ($search) {
+    $query .= " AND (p.nama_hewan LIKE ? OR o.nama_lengkap LIKE ? OR o.no_telepon LIKE ?)";
+    $search_param = "%$search%";
+    $params = array_merge($params, [$search_param, $search_param, $search_param]);
+}
+
+if ($status) {
+    $query .= " AND a.status = ?";
+    $params[] = $status;
+}
+
+if ($date_from && $date_to) {
+    $query .= " AND a.tanggal_appointment BETWEEN ? AND ?";
+    $params[] = $date_from;
+    $params[] = $date_to;
+}
+
+if ($dokter_id) {
+    $query .= " AND a.dokter_id = ?";
+    $params[] = $dokter_id;
+}
+
+// Get total records for pagination
+$count_query = str_replace("SELECT a.*, p.nama_hewan", "SELECT COUNT(*)", $query);
+$stmt = $pdo->prepare($count_query);
+$stmt->execute($params);
+$total_records = $stmt->fetchColumn();
+$total_pages = ceil($total_records / $per_page);
+
+// Add sorting and limit
+$query .= " ORDER BY a.tanggal_appointment ASC, a.jam_appointment ASC LIMIT ? OFFSET ?";
+$params[] = $per_page;
+$params[] = $offset;
+
+// Execute final query
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$appointments = $stmt->fetchAll();
+
+// Get all doctors for filter
+$doctors_stmt = $pdo->query("SELECT dokter_id, nama_dokter FROM veterinarian WHERE status = 'Aktif' ORDER BY nama_dokter");
+$doctors = $doctors_stmt->fetchAll();
+
+include __DIR__ . '/../includes/header.php';
+?>
+
+<div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h2 class="text-2xl font-bold text-gray-800">Janji Temu</h2>
+        <div class="flex gap-2">
+            <a href="calendar.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                <i class="fas fa-calendar-alt mr-2"></i> Kalender
+            </a>
+            <a href="create.php" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                <i class="fas fa-plus mr-2"></i> Buat Janji
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <form action="" method="GET" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <!-- Search -->
             <div>
-                <p class="text-gray-500 text-sm">Total Pasien</p>
-                <p class="text-3xl font-bold text-gray-800"><?php echo number_format($total_pets); ?></p>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Pencarian</label>
+                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>"
+                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Nama/Telepon...">
             </div>
-            <div class="bg-blue-100 rounded-full p-3">
-                <i class="fas fa-paw text-blue-500 text-2xl"></i>
-            </div>
-        </div>
-    </div>
 
-    <!-- Total Owners -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between">
+            <!-- Date Range -->
             <div>
-                <p class="text-gray-500 text-sm">Total Pemilik</p>
-                <p class="text-3xl font-bold text-gray-800"><?php echo number_format($total_owners); ?></p>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Dari Tanggal</label>
+                <input type="date" name="date_from" value="<?php echo $date_from; ?>"
+                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-            <div class="bg-green-100 rounded-full p-3">
-                <i class="fas fa-users text-green-500 text-2xl"></i>
-            </div>
-        </div>
-    </div>
 
-    <!-- Active Doctors -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">Dokter Aktif</p>
-                <p class="text-3xl font-bold text-gray-800"><?php echo number_format($total_doctors); ?></p>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Sampai Tanggal</label>
+                <input type="date" name="date_to" value="<?php echo $date_to; ?>"
+                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-            <div class="bg-purple-100 rounded-full p-3">
-                <i class="fas fa-user-md text-purple-500 text-2xl"></i>
-            </div>
-        </div>
-    </div>
 
-    <!-- Monthly Revenue -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between">
+            <!-- Status -->
             <div>
-                <p class="text-gray-500 text-sm">Pendapatan Bulan Ini</p>
-                <p class="text-3xl font-bold text-gray-800"><?php echo format_rupiah($monthly_revenue); ?></p>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Semua Status</option>
+                    <option value="Pending" <?php echo $status === 'Pending' ? 'selected' : ''; ?>>Pending</option>
+                    <option value="Confirmed" <?php echo $status === 'Confirmed' ? 'selected' : ''; ?>>Confirmed</option>
+                    <option value="Completed" <?php echo $status === 'Completed' ? 'selected' : ''; ?>>Completed</option>
+                    <option value="Cancelled" <?php echo $status === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                    <option value="No_Show" <?php echo $status === 'No_Show' ? 'selected' : ''; ?>>No Show</option>
+                </select>
             </div>
-            <div class="bg-yellow-100 rounded-full p-3">
-                <i class="fas fa-money-bill-wave text-yellow-500 text-2xl"></i>
+
+            <!-- Doctor -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Dokter</label>
+                <select name="dokter_id" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Semua Dokter</option>
+                    <?php foreach ($doctors as $doctor): ?>
+                        <option value="<?php echo $doctor['dokter_id']; ?>"
+                                <?php echo $dokter_id === $doctor['dokter_id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($doctor['nama_lengkap']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
+
+            <!-- Filter Buttons -->
+            <div class="md:col-span-3 lg:col-span-5 flex gap-2 justify-end">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    <i class="fas fa-search mr-2"></i> Filter
+                </button>
+                <?php if ($search || $status || $dokter_id || $date_from != date('Y-m-d') || $date_to != date('Y-m-d', strtotime('+7 days'))): ?>
+                    <a href="?" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-times mr-2"></i> Reset
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
+    </div>
+
+    <!-- Appointments List -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tanggal & Jam
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Pasien & Pemilik
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Layanan & Dokter
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Aksi
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <?php if (empty($appointments)): ?>
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                Tidak ada data janji temu
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($appointments as $appointment): ?>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <?php echo date('d/m/Y', strtotime($appointment['tanggal_appointment'])); ?>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        <?php echo date('H:i', strtotime($appointment['jam_appointment'])); ?>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <?php echo htmlspecialchars($appointment['nama_hewan']); ?>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        <?php echo htmlspecialchars($appointment['owner_name']); ?> -
+                                        <?php echo htmlspecialchars($appointment['owner_phone']); ?>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <?php echo htmlspecialchars($appointment['nama_layanan']); ?>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        <?php echo htmlspecialchars($appointment['dokter_name']); ?>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <?php echo get_appointment_status_badge($appointment['status']); ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <a href="detail.php?id=<?php echo $appointment['appointment_id']; ?>" 
+                                       class="text-blue-600 hover:text-blue-900 mr-3">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="edit.php?id=<?php echo $appointment['appointment_id']; ?>"
+                                       class="text-yellow-600 hover:text-yellow-900 mr-3">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button onclick="confirmDelete(<?php echo $appointment['appointment_id']; ?>, '<?php echo htmlspecialchars($appointment['nama_hewan']); ?>')"
+                                            class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
-</div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Today's Appointments -->
-    <div class="lg:col-span-2">
-        <div class="bg-white rounded-lg shadow-md">
-            <div class="p-4 border-b">
-                <h2 class="text-lg font-semibold text-gray-800">Janji Temu Hari Ini</h2>
+    <!-- Pagination -->
+    <?php if ($total_pages > 1): ?>
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-600">
+                Showing <?php echo $offset + 1; ?> to <?php echo min($offset + $per_page, $total_records); ?> 
+                of <?php echo $total_records; ?> entries
             </div>
-            <div class="p-4">
-                <?php if (empty($appointments)): ?>
-                    <p class="text-gray-500 text-center py-4">Tidak ada janji temu hari ini</p>
-                <?php else: ?>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr>
-                                    <th class="px-4 py-2 text-left">Jam</th>
-                                    <th class="px-4 py-2 text-left">Pemilik</th>
-                                    <th class="px-4 py-2 text-left">Hewan</th>
-                                    <th class="px-4 py-2 text-left">Dokter</th>
-                                    <th class="px-4 py-2 text-left">Status</th>
-                                    <th class="px-4 py-2 text-left">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                <?php foreach ($appointments as $appt): ?>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-2 text-gray-900"><?php echo date('H:i', strtotime($appt['jam_appointment'])); ?></td>
-                                    <td class="px-4 py-2 text-gray-900"><?php echo htmlspecialchars($appt['owner_name']); ?></td>
-                                    <td class="px-4 py-2 text-gray-900"><?php echo htmlspecialchars($appt['pet_name']); ?></td>
-                                    <td class="px-4 py-2 text-gray-900"><?php echo htmlspecialchars($appt['nama_dokter']); ?></td>
-                                    <td class="px-4 py-2"><?php echo get_appointment_status_badge($appt['status']); ?></td>
-                                    <td class="px-4 py-2">
-                                        <a href="../appointments/detail.php?id=<?php echo $appt['appointment_id']; ?>" 
-                                           class="text-blue-600 hover:text-blue-800">
-                                            <i class="fas fa-eye"></i> Detail
-                                        </a>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="flex space-x-1">
+                <?php if ($page > 1): ?>
+                    <a href="?page=<?php echo ($page - 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&dokter_id=<?php echo $dokter_id; ?>&date_from=<?php echo $date_from; ?>&date_to=<?php echo $date_to; ?>"
+                       class="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-blue-50">
+                        Previous
+                    </a>
+                <?php endif; ?>
+                
+                <?php if ($page < $total_pages): ?>
+                    <a href="?page=<?php echo ($page + 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&dokter_id=<?php echo $dokter_id; ?>&date_from=<?php echo $date_from; ?>&date_to=<?php echo $date_to; ?>"
+                       class="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-blue-50">
+                        Next
+                    </a>
                 <?php endif; ?>
             </div>
         </div>
-    </div>
-
-    <!-- Alerts -->
-    <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow-md">
-            <div class="p-4 border-b">
-                <h2 class="text-lg font-semibold text-gray-800">Notifikasi</h2>
-            </div>
-            <div class="p-4">
-                <!-- Low Stock Medicines -->
-                <?php if (!empty($low_stock)): ?>
-                    <div class="mb-4">
-                        <h3 class="text-sm font-semibold text-red-600 mb-2">
-                            <i class="fas fa-exclamation-triangle"></i> Stok Obat Menipis
-                        </h3>
-                        <ul class="text-sm space-y-1">
-                            <?php foreach ($low_stock as $med): ?>
-                                <li class="flex justify-between">
-                                    <span><?php echo htmlspecialchars($med['nama_obat']); ?></span>
-                                    <span class="text-red-600"><?php echo $med['stok']; ?> tersisa</span>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <!-- Upcoming Vaccinations -->
-                <?php if (!empty($upcoming_vaccinations)): ?>
-                    <div class="mb-4">
-                        <h3 class="text-sm font-semibold text-blue-600 mb-2">
-                            <i class="fas fa-syringe"></i> Jadwal Vaksinasi
-                        </h3>
-                        <ul class="text-sm space-y-1">
-                            <?php foreach ($upcoming_vaccinations as $vac): ?>
-                                <li>
-                                    <?php echo htmlspecialchars($vac['nama_hewan']); ?> -
-                                    <?php echo format_tanggal($vac['tanggal_vaksin']); ?>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <!-- Expiring Medicines -->
-                <?php if (!empty($expiring_medicines)): ?>
-                    <div class="mb-4">
-                        <h3 class="text-sm font-semibold text-yellow-600 mb-2">
-                            <i class="fas fa-clock"></i> Obat Mendekati Kadaluarsa
-                        </h3>
-                        <ul class="text-sm space-y-1">
-                            <?php foreach ($expiring_medicines as $med): ?>
-                                <li class="flex justify-between">
-                                    <span><?php echo htmlspecialchars($med['nama_obat']); ?></span>
-                                    <span class="text-yellow-600"><?php echo format_tanggal($med['expired_date']); ?></span>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (empty($low_stock) && empty($upcoming_vaccinations) && empty($expiring_medicines)): ?>
-                    <p class="text-gray-500 text-center py-4">Tidak ada notifikasi penting</p>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Revenue Chart -->
-<div class="mt-6">
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Grafik Pendapatan 6 Bulan Terakhir</h2>
-        <canvas id="revenueChart" height="100"></canvas>
-    </div>
+    <?php endif; ?>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Comprehensive checks before initializing chart
-    const chartCanvas = document.getElementById('revenueChart');
-    
-    // Check if canvas element exists
-    if (!chartCanvas) {
-        console.warn('Revenue chart canvas not found in DOM');
-        return;
-    }
-    
-    // Check if Chart.js is loaded
-    if (typeof Chart === 'undefined') {
-        console.error('Chart.js is not loaded!');
-        const parent = chartCanvas.parentElement;
-        if (parent) {
-            parent.innerHTML = '<div class="text-red-600 text-center p-4">Chart.js gagal dimuat. Silakan refresh halaman.</div>';
+function confirmDelete(id, name) {
+    Swal.fire({
+        title: 'Konfirmasi Hapus',
+        text: `Apakah Anda yakin ingin menghapus janji temu untuk ${name}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = `delete.php?id=${id}`;
         }
-        return;
-    }
-    
-    // Destroy existing chart instance if any
-    const existingChart = Chart.getChart(chartCanvas);
-    if (existingChart) {
-        existingChart.destroy();
-    }
-    
-    // Fetch revenue data and initialize chart
-    fetch('../api/dashboard_stats.php?type=revenue')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok: ' + response.statusText);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Revenue data received:', data);
-            
-            // Verify canvas still exists after async fetch
-            const canvas = document.getElementById('revenueChart');
-            if (!canvas) {
-                console.warn('Canvas element disappeared during data fetch');
-                return;
-            }
-            
-            if (!data.months || !data.values || data.months.length === 0) {
-                const parent = canvas.parentElement;
-                if (parent) {
-                    parent.innerHTML = '<div class="text-gray-600 text-center p-4">Tidak ada data pendapatan untuk ditampilkan.</div>';
-                }
-                return;
-            }
-            
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                console.error('Cannot get 2D context from canvas');
-                return;
-            }
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.months,
-                    datasets: [{
-                        label: 'Pendapatan',
-                        data: data.values,
-                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                        borderColor: 'rgba(59, 130, 246, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return 'Rp ' + value.toLocaleString('id-ID');
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        })
-        .catch(error => {
-            console.error('Error loading chart data:', error);
-            const canvas = document.getElementById('revenueChart');
-            if (canvas && canvas.parentElement) {
-                canvas.parentElement.innerHTML = 
-                    '<div class="text-red-600 text-center p-4">' +
-                    '<i class="fas fa-exclamation-triangle mb-2"></i><br>' +
-                    'Gagal memuat data grafik: ' + error.message + 
-                    '</div>';
-            }
-        });
+    });
+}
+
+// Enable DataTables
+$(document).ready(function() {
+    $('.datatable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
+        },
+        pageLength: 10,
+        ordering: true,
+        responsive: true
+    });
 });
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php include __DIR__ . '/../includes/footer.php'; ?>

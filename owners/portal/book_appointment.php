@@ -203,23 +203,13 @@ function loadAvailableSlots() {
     document.getElementById('availableSlots').innerHTML = '<i class="fas fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i><p class="text-gray-600">Loading...</p>';
 
     fetch(`get_available_slots.php?tanggal=${tanggal}&hari=${dayName}`)
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(text || response.statusText);
-                });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
             displayAvailableSlots(data);
         })
         .catch(error => {
             console.error('Error:', error);
-            document.getElementById('availableSlots').innerHTML = `<div class="text-center py-8"><i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-3"></i><p class="text-red-600">Error loading slots: ${error.message}</p></div>`;
+            document.getElementById('availableSlots').innerHTML = '<p class="text-red-600">Error loading slots</p>';
         });
 }
 

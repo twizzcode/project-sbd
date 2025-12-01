@@ -554,11 +554,11 @@
                         <span class="px-4 py-2 rounded-full text-white text-sm font-medium" style="background: rgba(255, 255, 255, 0.15);">
                             <i class="fas fa-phone-alt mr-2 text-blue-300"></i>+62 123-456-7890
                         </span>
-                        <a href="/owners/portal/login.php" class="px-6 py-2 rounded-full text-white text-sm font-bold hover:bg-white hover:text-blue-900 transition-all" style="background: rgba(255, 255, 255, 0.2);">
-                            <i class="fas fa-user mr-2"></i>Login Owner
+                        <a href="/auth/register.php" class="px-6 py-2 rounded-full text-white text-sm font-bold hover:bg-white hover:text-blue-900 transition-all" style="background: rgba(255, 255, 255, 0.2);">
+                            <i class="fas fa-user-plus mr-2"></i>Daftar
                         </a>
                         <a href="/auth/login.php" class="px-6 py-2 rounded-full text-blue-900 bg-white text-sm font-bold hover:shadow-lg transition-all">
-                            <i class="fas fa-user-shield mr-2"></i>Login Staff
+                            <i class="fas fa-sign-in-alt mr-2"></i>Login
                         </a>
                     </div>
                 </div>
@@ -581,14 +581,14 @@
                 
                 <!-- CTA Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8 fade-in-up delay-300">
-                    <a href="/owners/portal/login.php" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine text-white" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);">
+                    <a href="/auth/login.php" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine text-white" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);">
                         <i class="fas fa-calendar-check mr-3 text-xl"></i>
                         <div class="text-left">
                             <div class="text-sm font-normal opacity-90">Jadwalkan Sekarang</div>
                             <div>Booking Appointment</div>
                         </div>
                     </a>
-                    <a href="/owners/portal/login.php" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine text-white" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    <a href="/auth/login.php" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-shine text-white" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
                         <i class="fas fa-stethoscope mr-3 text-xl"></i>
                         <div class="text-left">
                             <div class="text-sm font-normal opacity-90">Cek Kesehatan</div>
@@ -692,7 +692,7 @@
 
             <!-- CTA Button -->
             <div class="text-center mt-10">
-                <a href="/owners/portal/login.php" class="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-5 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl transition-all btn-shine">
+                <a href="/auth/register.php" class="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-5 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl transition-all btn-shine">
                     <i class="fas fa-rocket mr-2"></i>Coba Sekarang Gratis
                 </a>
                 <p class="text-gray-500 text-sm mt-3">Tidak perlu kartu kredit • Setup dalam 2 menit</p>
@@ -708,7 +708,7 @@
                 <h3 class="text-3xl font-bold text-gray-800 mb-2">Mulai Kelola Kesehatan Pet Anda</h3>
                 <p class="text-gray-600 mb-6">Daftar sekarang dan dapatkan akses ke Multi-Pet Dashboard</p>
                 
-                <a href="/owners/portal/login.php" class="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-5 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl transition-all btn-shine">
+                <a href="/auth/register.php" class="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-5 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl transition-all btn-shine">
                     <i class="fas fa-user-plus mr-2"></i>Daftar / Login Sekarang
                 </a>
                 <p class="text-gray-500 text-sm mt-4">Gratis • Tanpa biaya tersembunyi • Setup dalam 2 menit</p>

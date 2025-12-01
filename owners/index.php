@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once '../auth/check_auth.php';
-require_once '../config/database.php';
-require_once '../includes/functions.php';
+require_once '../../auth/check_auth.php';
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
 
 // Owner management is restricted to staff only (not Owner role)
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'Owner') {
@@ -26,22 +26,23 @@ $query = "
         o.*,
         COUNT(DISTINCT p.pet_id) as total_pets,
         COUNT(DISTINCT a.appointment_id) as total_appointments
-    FROM owner o
-    LEFT JOIN pet p ON o.owner_id = p.owner_id
-    LEFT JOIN appointment a ON o.owner_id = a.owner_id
+    FROM users o
+    LEFT JOIN pet p ON o.user_id = p.owner_id
+    LEFT JOIN appointment a ON o.user_id = a.owner_id
+    WHERE o.role = 'Owner'
 ";
 
 $params = [];
 if ($search) {
-    $query .= " WHERE o.nama_lengkap LIKE ? OR o.no_telepon LIKE ? OR o.email LIKE ?";
+    $query .= " AND (o.nama_lengkap LIKE ? OR o.no_telepon LIKE ? OR o.email LIKE ?)";
     $params = ["%$search%", "%$search%", "%$search%"];
 }
 
-$query .= " GROUP BY o.owner_id ORDER BY o.tanggal_registrasi DESC";
+$query .= " GROUP BY o.user_id ORDER BY o.created_at DESC";
 
 // Get total records for pagination
-$total_stmt = $pdo->prepare("SELECT COUNT(DISTINCT o.owner_id) as total FROM owner o" . 
-    ($search ? " WHERE nama_lengkap LIKE ? OR no_telepon LIKE ? OR email LIKE ?" : ""));
+$total_stmt = $pdo->prepare("SELECT COUNT(DISTINCT o.user_id) as total FROM users o WHERE o.role = 'Owner'" . 
+    ($search ? " AND (nama_lengkap LIKE ? OR no_telepon LIKE ? OR email LIKE ?)" : ""));
 if ($search) {
     $total_stmt->execute($params);
 } else {
@@ -59,7 +60,7 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $owners = $stmt->fetchAll();
 
-include '../includes/header.php';
+include '../../includes/header.php';
 ?>
 
 <!-- Content Header -->
@@ -120,7 +121,10 @@ include '../includes/header.php';
                             <?php echo htmlspecialchars($owner['nama_lengkap']); ?>
                         </div>
                         <div class="text-sm text-gray-500">
-                            <?php echo htmlspecialchars(substr($owner['alamat'], 0, 50)) . (strlen($owner['alamat']) > 50 ? '...' : ''); ?>
+                            <?php 
+                            $alamat = $owner['alamat'] ?? '';
+                            echo htmlspecialchars(substr($alamat, 0, 50)) . (strlen($alamat) > 50 ? '...' : ''); 
+                            ?>
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -136,18 +140,18 @@ include '../includes/header.php';
                         <?php echo $owner['total_appointments']; ?> kali
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <?php echo format_tanggal($owner['tanggal_registrasi']); ?>
+                        <?php echo isset($owner['tanggal_registrasi']) ? format_date($owner['tanggal_registrasi']) : '-'; ?>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <a href="detail.php?id=<?php echo $owner['owner_id']; ?>" 
+                        <a href="detail.php?id=<?php echo $owner['user_id']; ?>" 
                            class="text-blue-600 hover:text-blue-900 mr-3">
                             <i class="fas fa-eye"></i> Detail
                         </a>
-                        <a href="edit.php?id=<?php echo $owner['owner_id']; ?>" 
+                        <a href="edit.php?id=<?php echo $owner['user_id']; ?>" 
                            class="text-yellow-600 hover:text-yellow-900 mr-3">
                             <i class="fas fa-edit"></i> Edit
                         </a>
-                        <a href="#" onclick="confirmDelete(<?php echo $owner['owner_id']; ?>, '<?php echo $owner['nama_lengkap']; ?>')"
+                        <button onclick="confirmDelete(<?php echo $owner['user_id']; ?>, '<?php echo htmlspecialchars($owner['nama_lengkap']); ?>')"
                            class="text-red-600 hover:text-red-900">
                             <i class="fas fa-trash"></i> Hapus
                         </a>
@@ -261,4 +265,4 @@ function confirmDelete(id, name) {
 }
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php include '../../includes/footer.php'; ?>
