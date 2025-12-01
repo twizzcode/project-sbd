@@ -58,6 +58,22 @@ require_once __DIR__ . '/../includes/owner_header.php';
                     </div>
                 </div>
             </div>
+
+            <!-- AI Assistant - NEW -->
+            <div class="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg p-6 hover-scale cursor-pointer" onclick="window.location.href='chatbot.php'">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-sm font-medium mb-1">AI Assistant</p>
+                        <p class="text-white text-lg font-bold">Ask PetCare AI</p>
+                    </div>
+                    <div class="w-14 h-14 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-robot text-white text-2xl"></i>
+                    </div>
+                </div>
+                <p class="text-white text-xs mt-3 opacity-90">
+                    <i class="fas fa-sparkles mr-1"></i>Get instant answers about pet health
+                </p>
+            </div>
         </div>
 
         <!-- Pets Grid -->

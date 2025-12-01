@@ -72,6 +72,9 @@
                     <a href="/owners/portal/book_appointment.php" class="text-gray-700 hover:text-indigo-600 transition flex items-center">
                         <i class="fas fa-calendar-plus mr-2"></i>Book Now
                     </a>
+                    <a href="/owners/portal/chatbot.php" class="text-gray-700 hover:text-indigo-600 transition flex items-center">
+                        <i class="fas fa-robot mr-2"></i>AI Assistant
+                    </a>
                 </div>
                 
                 <!-- User Info & Logout -->
