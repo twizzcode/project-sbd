@@ -31,8 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'diagnosis' => $_POST['diagnosis'] ?? '',
         'tindakan' => $_POST['tindakan'] ?? '',
         'resep' => $_POST['resep'] ?? '',
-        'catatan' => $_POST['catatan'] ?? '',
-        'status' => 'Active'
+        'catatan' => $_POST['catatan'] ?? ''
     ];
 
     // Validate input
@@ -40,60 +39,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         try {
-            $pdo->beginTransaction();
+            mysqli_begin_transaction($conn);
+
+            $pet_id = mysqli_real_escape_string($conn, $data['pet_id']);
+            $dokter_id = mysqli_real_escape_string($conn, $data['dokter_id']);
+            $appointment_id = $data['appointment_id'] ? mysqli_real_escape_string($conn, $data['appointment_id']) : 'NULL';
+            $tanggal = mysqli_real_escape_string($conn, $data['tanggal']);
+            $diagnosis = mysqli_real_escape_string($conn, $data['diagnosis']);
+            $tindakan = mysqli_real_escape_string($conn, $data['tindakan']);
+            $resep = mysqli_real_escape_string($conn, $data['resep']);
+            $catatan = mysqli_real_escape_string($conn, $data['catatan']);
 
             // Insert medical record
-            $stmt = $pdo->prepare("
+            $result = mysqli_query($conn, "
                 INSERT INTO medical_record (
                     pet_id, dokter_id, appointment_id, tanggal_kunjungan,
-                    keluhan, diagnosis, tindakan, resep, catatan_dokter
+                    diagnosis, tindakan, resep, catatan_dokter
                 ) VALUES (
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?
+                    '$pet_id', '$dokter_id', " . ($data['appointment_id'] ? "'$appointment_id'" : "NULL") . ", '$tanggal',
+                    '$diagnosis', '$tindakan', '$resep', '$catatan'
                 )
             ");
 
-            $stmt->execute([
-                $data['pet_id'],
-                $data['dokter_id'],
-                $data['appointment_id'],
-                $data['tanggal'],
-                $data['keluhan'] ?? '',
-                $data['diagnosis'],
-                $data['tindakan'],
-                $data['resep'],
-                $data['catatan']
-            ]);
+            $record_id = mysqli_insert_id($conn);
 
-            $record_id = $pdo->lastInsertId();
-
-            // Create history record
-            create_medical_record_history(
-                $pdo, 
-                $record_id, 
-                'CREATE', 
-                null, 
-                'Active',
-                'Rekam medis baru dibuat'
-            );
-
-            // Update appointment status if from appointment
-            if ($data['appointment_id']) {
-                $stmt = $pdo->prepare("
-                    UPDATE appointment 
-                    SET status = 'Completed'
-                    WHERE appointment_id = ?
-                ");
-                $stmt->execute([$data['appointment_id']]);
-            }
-
-            $pdo->commit();
+            mysqli_commit($conn);
             $_SESSION['success'] = "Rekam medis berhasil dibuat";
             header("Location: detail.php?id=" . $record_id);
             exit;
 
         } catch (Exception $e) {
-            $pdo->rollBack();
+            mysqli_rollback($conn);
             $errors[] = "Terjadi kesalahan: " . $e->getMessage();
         }
     }
@@ -102,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get appointment data if from appointment
 $appointment = null;
 if (isset($_GET['appointment_id'])) {
-    $stmt = $pdo->prepare("
+    $appointment_id = (int)$_GET['appointment_id'];
+    $result = mysqli_query($conn, "
         SELECT 
             a.*,
             p.pet_id,
@@ -117,14 +94,14 @@ if (isset($_GET['appointment_id'])) {
         JOIN pet p ON a.pet_id = p.pet_id
         JOIN users o ON p.owner_id = o.user_id
         JOIN veterinarian v ON a.dokter_id = v.dokter_id
-        WHERE a.appointment_id = ? AND a.status = 'Confirmed'
+        WHERE a.appointment_id = '$appointment_id'
     ");
-    $stmt->execute([$_GET['appointment_id']]);
-    $appointment = $stmt->fetch();
+    
+    $appointment = mysqli_fetch_assoc($result);
 }
 
 // Get pets for dropdown
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         p.pet_id,
         p.nama_hewan,
@@ -136,18 +113,18 @@ $stmt = $pdo->prepare("
     WHERE p.status = 'Active'
     ORDER BY p.nama_hewan
 ");
-$stmt->execute();
-$pets = $stmt->fetchAll();
+
+$pets = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get doctors for dropdown
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT dokter_id, nama_dokter as nama_lengkap, spesialisasi
     FROM veterinarian
     WHERE status = 'Aktif'
     ORDER BY nama_dokter
 ");
-$stmt->execute();
-$doctors = $stmt->fetchAll();
+
+$doctors = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -181,7 +158,7 @@ include '../../includes/header.php';
                 <h3 class="text-lg font-semibold text-blue-800 mb-2">
                     Membuat Rekam Medis dari Janji Temu
                 </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <p class="text-sm text-blue-600">Pasien</p>
                         <p class="font-medium">
@@ -197,19 +174,26 @@ include '../../includes/header.php';
                         </p>
                     </div>
                     <div>
+                        <p class="text-sm text-blue-600">Dokter</p>
+                        <p class="font-medium">
+                            Dr. <?php echo htmlspecialchars($appointment['nama_dokter']); ?>
+                            <?php if ($appointment['spesialisasi']): ?>
+                                <br><span class="text-sm text-gray-600">(<?php echo htmlspecialchars($appointment['spesialisasi']); ?>)</span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                    <div>
                         <p class="text-sm text-blue-600">Tanggal Janji Temu</p>
                         <p class="font-medium">
                             <?php echo isset($appointment['tanggal_appointment']) ? date('l, d F Y', strtotime($appointment['tanggal_appointment'])) : '-'; ?>
-                        </p>
-                        <p class="text-sm text-blue-600 mt-2">Waktu</p>
-                        <p class="font-medium">
-                            <?php echo isset($appointment['jam_appointment']) ? date('H:i', strtotime($appointment['jam_appointment'])) . ' WIB' : '-'; ?>
                         </p>
                     </div>
                 </div>
             </div>
             <input type="hidden" name="appointment_id" value="<?php echo $appointment['appointment_id']; ?>">
             <input type="hidden" name="pet_id" value="<?php echo $appointment['pet_id']; ?>">
+            <input type="hidden" name="dokter_id" value="<?php echo $appointment['dokter_id']; ?>">
+            <input type="hidden" name="tanggal" value="<?php echo $appointment['tanggal_appointment']; ?>">
         <?php endif; ?>
 
         <?php if (!$appointment): ?>

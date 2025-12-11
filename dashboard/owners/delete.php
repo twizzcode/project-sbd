@@ -20,9 +20,9 @@ if (!$owner_id) {
 }
 
 // Get owner data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ? AND role = 'Owner'");
-$stmt->execute([$owner_id]);
-$owner = $stmt->fetch();
+$result = mysqli_query($conn, "SELECT * FROM users WHERE user_id = '$owner_id' AND role = 'Owner'");
+
+$owner = mysqli_fetch_assoc($result);
 
 if (!$owner) {
     $_SESSION['error'] = "Pemilik tidak ditemukan";
@@ -31,31 +31,32 @@ if (!$owner) {
 }
 
 // Check if owner has pets
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM pet WHERE owner_id = ?");
-$stmt->execute([$owner_id]);
-$pet_count = $stmt->fetchColumn();
+$result = mysqli_query($conn, "SELECT COUNT(*) FROM pet WHERE owner_id = '$owner_id'");
+
+$pet_count = mysqli_fetch_row($result)[0];
 
 // Check if owner has appointments
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM appointment WHERE owner_id = ?");
-$stmt->execute([$owner_id]);
-$appointment_count = $stmt->fetchColumn();
+$result = mysqli_query($conn, "SELECT COUNT(*) FROM appointment WHERE owner_id = '$owner_id'");
+
+$appointment_count = mysqli_fetch_row($result)[0];
 
 // Handle deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_delete'])) {
     try {
         // Soft delete: Set status to Nonaktif
-        $stmt = $pdo->prepare("UPDATE users SET status = 'Nonaktif' WHERE user_id = ?");
-        $stmt->execute([$owner_id]);
+        $result = mysqli_query($conn, "UPDATE users SET status = 'Nonaktif' WHERE user_id = '$owner_id'");
+        
+        if (!$result) {
+            throw new Exception(mysqli_error($conn));
+        }
         
         $_SESSION['success'] = "Pemilik hewan berhasil dinonaktifkan";
         header("Location: index.php");
         exit;
         
-    } catch (PDOException $e) {
-        $_SESSION['error'] = "Gagal menghapus pemilik: " . $e->getMessage();
-        header("Location: index.php");
-        exit;
-    }
+    } catch (Exception $e) {
+        $_SESSION['error'] = "Error: " . $e->getMessage();
+    } 
 }
 
 include '../../includes/header.php';

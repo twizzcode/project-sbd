@@ -7,44 +7,43 @@ require_once '../../includes/functions.php';
 $page_title = 'Tambah Hewan';
 
 // Get all owners for the dropdown
-$owners_stmt = $pdo->query("SELECT user_id as owner_id, nama_lengkap, no_telepon FROM users WHERE role = 'Owner' ORDER BY nama_lengkap");
-$owners = $owners_stmt->fetchAll();
+$owners_stmt = mysqli_query($conn, "SELECT user_id as owner_id, nama_lengkap, no_telepon FROM users WHERE role = 'Owner' ORDER BY nama_lengkap");
+$owners = mysqli_fetch_all($owners_stmt, MYSQLI_ASSOC);
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Start transaction
-        $pdo->beginTransaction();
+        mysqli_begin_transaction($conn);
 
-        $owner_id = clean_input($_POST['owner_id']);
-        $nama_hewan = clean_input($_POST['nama_hewan']);
-        $jenis = clean_input($_POST['jenis'] ?? '');
-        $ras = clean_input($_POST['ras'] ?? '');
-        $jenis_kelamin = clean_input($_POST['jenis_kelamin']);
-        $tanggal_lahir = !empty($_POST['tanggal_lahir']) ? clean_input($_POST['tanggal_lahir']) : null;
-        $berat_badan = !empty($_POST['berat_badan']) ? clean_input($_POST['berat_badan']) : null;
-        $warna = clean_input($_POST['warna'] ?? '');
-        $ciri_khusus = clean_input($_POST['ciri_khusus'] ?? '');
+        $owner_id = mysqli_real_escape_string($conn, $_POST['owner_id']);
+        $nama_hewan = mysqli_real_escape_string($conn, $_POST['nama_hewan']);
+        $jenis = mysqli_real_escape_string($conn, $_POST['jenis'] ?? '');
+        $ras = mysqli_real_escape_string($conn, $_POST['ras'] ?? '');
+        $jenis_kelamin = mysqli_real_escape_string($conn, $_POST['jenis_kelamin']);
+        $tanggal_lahir = !empty($_POST['tanggal_lahir']) ? mysqli_real_escape_string($conn, $_POST['tanggal_lahir']) : null;
+        $berat_badan = !empty($_POST['berat_badan']) ? mysqli_real_escape_string($conn, $_POST['berat_badan']) : null;
+        $warna = mysqli_real_escape_string($conn, $_POST['warna'] ?? '');
+        $ciri_khusus = mysqli_real_escape_string($conn, $_POST['ciri_khusus'] ?? '');
         $status = 'Aktif'; // Default status for new pets
 
         // Insert pet data
-        $stmt = $pdo->prepare("
+        $result = mysqli_query($conn, "
             INSERT INTO pet (
                 owner_id, nama_hewan, jenis, ras, jenis_kelamin, 
                 tanggal_lahir, berat_badan, warna, ciri_khusus, status
             ) VALUES (
-                ?, ?, ?, ?, ?, 
-                ?, ?, ?, ?, ?
+                '$owner_id', '$nama_hewan', '$jenis', '$ras', '$jenis_kelamin', 
+                " . ($tanggal_lahir ? "'$tanggal_lahir'" : "NULL") . ", 
+                " . ($berat_badan ? "'$berat_badan'" : "NULL") . ", 
+                '$warna', '$ciri_khusus', '$status'
             )
         ");
 
-        $stmt->execute([
-            $owner_id, $nama_hewan, $jenis, $ras, $jenis_kelamin,
-            $tanggal_lahir, $berat_badan, $warna, $ciri_khusus, $status
-        ]);
+        
 
         // Commit transaction
-        $pdo->commit();
+        mysqli_commit($conn);
 
         $_SESSION['success'] = "Data hewan berhasil ditambahkan";
         header("Location: index.php");
@@ -52,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (Exception $e) {
         // Rollback transaction on error
-        $pdo->rollBack();
+        mysqli_rollback($conn);
         $_SESSION['error'] = "Error: " . $e->getMessage();
     }
 }

@@ -30,10 +30,10 @@ if (!$appointment_id) {
 
 try {
     // Start transaction
-    $pdo->beginTransaction();
+    mysqli_begin_transaction($conn);
 
     // Get appointment details first
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         SELECT 
             a.*,
             p.nama_hewan,
@@ -45,16 +45,15 @@ try {
         JOIN users o ON a.owner_id = o.user_id
         WHERE a.appointment_id = ?
     ");
-    $stmt->execute([$appointment_id]);
-    $appointment = $stmt->fetch();
+    
+    $appointment = mysqli_fetch_assoc($result);
 
     if (!$appointment) {
         throw new Exception("Data janji temu tidak ditemukan");
     }
 
     // Check if appointment can be deleted
-    $appointment_datetime = $appointment['tanggal_appointment'] . ' ' . $appointment['jam_appointment'];
-    $appointment_date = strtotime($appointment_datetime);
+    $appointment_date = strtotime($appointment['tanggal_appointment']);
     $now = time();
 
     // Only allow deletion of future appointments or by admin
@@ -63,18 +62,18 @@ try {
     }
 
     // Delete the appointment (CASCADE will handle medical_record)
-    $stmt = $pdo->prepare("DELETE FROM appointment WHERE appointment_id = ?");
-    $stmt->execute([$appointment_id]);
+    $result = mysqli_query($conn, "DELETE FROM appointment WHERE appointment_id = '$appointment_id'");
+    
 
     // Commit transaction
-    $pdo->commit();
+    mysqli_commit($conn);
 
     // Set success message
     $_SESSION['success'] = "Janji temu berhasil dihapus";
 
 } catch (Exception $e) {
     // Rollback transaction on error
-    $pdo->rollBack();
+    mysqli_rollback($conn);
     
     // Log error
     error_log("Error deleting appointment #$appointment_id: " . $e->getMessage());

@@ -16,51 +16,40 @@ if (isset($_SESSION['user_id'])) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username']);
+    $username = $_POST['username'];
     $password = $_POST['password'];
     
-    try {
-        $stmt = $pdo->prepare("
-            SELECT user_id, username, password, nama_lengkap, email, role, status 
-            FROM users 
-            WHERE (username = ? OR email = ?) AND status = 'Aktif'
-        ");
-        $stmt->execute([$username, $username]);
-        $user = $stmt->fetch();
+    $result = mysqli_query($conn, "SELECT user_id, username, password, nama_lengkap, email, role, status 
+        FROM users WHERE (username = '$username' OR email = '$username') AND status = 'Aktif'");
+    $user = mysqli_fetch_assoc($result);
+    
+    if ($user && $password === $user['password']) {
+        // Set session
+        $_SESSION['user_id'] = $user['user_id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['nama_lengkap'] = $user['nama_lengkap'];
+        $_SESSION['email'] = $user['email'];
+        $_SESSION['role'] = $user['role'];
         
-        if ($user && password_verify($password, $user['password'])) {
-            // Set session
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['nama_lengkap'] = $user['nama_lengkap'];
-            $_SESSION['email'] = $user['email'];
-            $_SESSION['role'] = $user['role'];
-            
-            // For backward compatibility with existing code
-            if ($user['role'] === 'Owner') {
-                $_SESSION['owner_id'] = $user['user_id'];
-                $_SESSION['owner_name'] = $user['nama_lengkap'];
-            }
-            
-            // Update last login
-            $update = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
-            $update->execute([$user['user_id']]);
-            
-            // Redirect berdasarkan role
-            if ($user['role'] === 'Admin') {
-                header('Location: /appointments/');
-            } else {
-                header('Location: /owners/portal/');
-            }
-            exit;
-        } else {
-            $error = 'Username/Email atau Password salah!';
+        // For backward compatibility
+        if ($user['role'] === 'Owner') {
+            $_SESSION['owner_id'] = $user['user_id'];
+            $_SESSION['owner_name'] = $user['nama_lengkap'];
         }
-    } catch (PDOException $e) {
-        $error = 'Terjadi kesalahan sistem. Silakan coba lagi.';
+        
+        // Redirect
+        if ($user['role'] === 'Admin') {
+            header('Location: /dashboard/');
+        } else {
+            header('Location: /owners/portal/');
+        }
+        exit;
+    } else {
+        $error = 'Username/Email atau Password salah!';
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -116,10 +105,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
 
             <div class="mt-6 text-center">
-                <p class="text-gray-600">Belum punya akun?</p>
-                <a href="register.php" class="text-purple-600 hover:text-purple-800 font-semibold">
-                    Daftar sebagai Owner <i class="fas fa-arrow-right ml-1"></i>
-                </a>
+                <p class="text-gray-600">Belum punya akun?
+                    <a href="register.php" class="text-purple-600 hover:text-purple-800 font-semibold">
+                        Daftar</i>
+                    </a>
+                </p>
             </div>
         </div>
 

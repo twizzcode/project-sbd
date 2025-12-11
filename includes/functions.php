@@ -1,8 +1,4 @@
 <?php
-// Format currency (IDR)
-function format_rupiah($number) {
-    return 'Rp ' . number_format($number, 0, ',', '.');
-}
 
 // Format date (Indonesian)
 function format_tanggal($date) {
@@ -23,14 +19,6 @@ function format_tanggal($date) {
 // Alias for format_tanggal
 function format_date($date) {
     return format_tanggal($date);
-}
-
-// Sanitize input
-function clean_input($data) {
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
 }
 
 // Pagination
@@ -59,5 +47,17 @@ function get_status_badge($status) {
     
     $color = $colors[$status] ?? 'gray';
     return "<span class='px-2 py-1 text-xs rounded-full bg-$color-100 text-$color-800'>$status</span>";
+}
+
+// Validate date range
+function validate_date_range($date_from, $date_to) {
+    $from = strtotime($date_from);
+    $to = strtotime($date_to);
+    
+    if ($from === false || $to === false) {
+        return false;
+    }
+    
+    return $from <= $to;
 }
 ?>

@@ -15,7 +15,7 @@ $error = '';
 
 // --- LOGIKA PHP ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['message'])) {
-    $userMessage = trim($_POST['message']);
+    $userMessage = $_POST['message'];
 
     // Tambahkan context untuk membuat chatbot lebih spesifik ke veterinary
     $systemPrompt = 'nda adalah "VetBot", asisten virtual profesional untuk Klinik Hewan "Sahabat Satwa". Anda memiliki pengetahuan luas tentang kesehatan anjing, kucing, dan hewan peliharaan umum lainnya.

@@ -12,11 +12,11 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nama_lengkap = trim($_POST['nama_lengkap']);
-    $email = trim($_POST['email']);
-    $username = trim($_POST['username']);
-    $no_telepon = trim($_POST['no_telepon']);
-    $alamat = trim($_POST['alamat']);
+    $nama_lengkap = $_POST['nama_lengkap'];
+    $email = $_POST['email'];
+    $username = $_POST['username'];
+    $no_telepon = $_POST['no_telepon'];
+    $alamat = $_POST['alamat'];
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     
@@ -26,30 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (strlen($password) < 6) {
         $error = 'Password minimal 6 karakter!';
     } else {
-        try {
-            // Cek username sudah ada
-            $check = $pdo->prepare("SELECT user_id FROM users WHERE username = ? OR email = ?");
-            $check->execute([$username, $email]);
+        // Cek username sudah ada
+        $check = mysqli_query($conn, "SELECT user_id FROM users WHERE username = '$username' OR email = '$email'");
+        
+        if (mysqli_num_rows($check) > 0) {
+            $error = 'Username atau Email sudah terdaftar!';
+        } else {
+            // Insert user baru
+            mysqli_query($conn, "INSERT INTO users (username, email, password, nama_lengkap, role, no_telepon, alamat, status)
+                VALUES ('$username', '$email', '$password', '$nama_lengkap', 'Owner', '$no_telepon', '$alamat', 'Aktif')");
             
-            if ($check->rowCount() > 0) {
-                $error = 'Username atau Email sudah terdaftar!';
-            } else {
-                // Insert user baru
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("
-                    INSERT INTO users (username, email, password, nama_lengkap, role, no_telepon, alamat, status)
-                    VALUES (?, ?, ?, ?, 'Owner', ?, ?, 'Aktif')
-                ");
-                $stmt->execute([$username, $email, $hashed_password, $nama_lengkap, $no_telepon, $alamat]);
-                
-                $success = 'Registrasi berhasil! Silakan login.';
-            }
-        } catch (PDOException $e) {
-            $error = 'Terjadi kesalahan sistem. Silakan coba lagi.';
+            $success = 'Registrasi berhasil! Silakan login.';
         }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>

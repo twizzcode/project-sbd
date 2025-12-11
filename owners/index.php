@@ -18,7 +18,7 @@ $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 // Get search term
-$search = isset($_GET['search']) ? clean_input($_GET['search']) : '';
+$search = isset($_GET['search']) ? $_GET['search'] : '';
 
 // Build query
 $query = "
@@ -56,9 +56,9 @@ $query .= " LIMIT ? OFFSET ?";
 $params[] = $per_page;
 $params[] = $offset;
 
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$owners = $stmt->fetchAll();
+$result = mysqli_query($conn, $query);
+
+$owners = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>

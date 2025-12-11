@@ -1,76 +1,59 @@
 <?php
 require_once __DIR__ . '/../includes/owner_auth.php';
-require_once __DIR__ . '/../../includes/owner_helper.php';
 
-$pet_id = $_GET['id'] ?? 0;
-$months = $_GET['months'] ?? 12; // Default 12 months view
+$pet_id = $_GET['id'];
+$months = $_GET['months'] ?? 12;
+$owner_id = $_SESSION['owner_id'];
 
 // Get pet details
-$stmt = $pdo->prepare("
-    SELECT p.*, 
-           TIMESTAMPDIFF(YEAR, p.tanggal_lahir, CURDATE()) as umur_tahun,
-           TIMESTAMPDIFF(MONTH, p.tanggal_lahir, CURDATE()) % 12 as umur_bulan
-    FROM pet p
-    WHERE p.pet_id = ? AND p.owner_id = ?
-");
-$stmt->execute([$pet_id, $_SESSION['owner_id']]);
-$pet = $stmt->fetch();
+$result = mysqli_query($conn, "SELECT p.*, 
+    TIMESTAMPDIFF(YEAR, p.tanggal_lahir, CURDATE()) as umur_tahun,
+    TIMESTAMPDIFF(MONTH, p.tanggal_lahir, CURDATE()) % 12 as umur_bulan
+    FROM pet p WHERE p.pet_id = '$pet_id' AND p.owner_id = '$owner_id'");
+$pet = mysqli_fetch_assoc($result);
 
 if (!$pet) {
     header('Location: /owners/portal/index.php');
     exit;
 }
 
-// Get medical history for timeline
-$stmt = $pdo->prepare("
-    SELECT 
-        'medical' as type,
-        mr.tanggal_kunjungan as tanggal,
-        mr.diagnosa as title,
-        mr.keluhan as description,
-        v.nama_dokter as dokter,
-        mr.berat_badan_saat_periksa as berat,
-        mr.suhu_tubuh as suhu
+// Get medical history
+$result = mysqli_query($conn, "SELECT 'medical' as type, mr.tanggal_kunjungan as tanggal,
+    mr.diagnosis as title, mr.keluhan as description, v.nama_dokter as dokter,
+    mr.berat_badan as berat, mr.suhu_tubuh as suhu
     FROM medical_record mr
     JOIN veterinarian v ON mr.dokter_id = v.dokter_id
-    WHERE mr.pet_id = ?
-    AND mr.tanggal_kunjungan >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
-    ORDER BY mr.tanggal_kunjungan DESC
-");
-$stmt->execute([$pet_id, $months]);
-$medical_records = $stmt->fetchAll();
+    WHERE mr.pet_id = '$pet_id'
+    AND mr.tanggal_kunjungan >= DATE_SUB(CURDATE(), INTERVAL $months MONTH)
+    ORDER BY mr.tanggal_kunjungan DESC");
+$medical_records = [];
+while ($row = mysqli_fetch_assoc($result)) {
+    $medical_records[] = $row;
+}
 
 // Get appointments
-$stmt = $pdo->prepare("
-    SELECT 
-        'appointment' as type,
-        a.tanggal_appointment as tanggal,
-        a.jenis_layanan as title,
-        a.keluhan_awal as description,
-        v.nama_dokter as dokter,
-        a.status
+$result = mysqli_query($conn, "SELECT 'appointment' as type, a.tanggal_appointment as tanggal,
+    'Appointment' as title, a.keluhan_awal as description, v.nama_dokter as dokter
     FROM appointment a
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    WHERE a.pet_id = ?
-    AND a.tanggal_appointment >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
-    ORDER BY a.tanggal_appointment DESC
-");
-$stmt->execute([$pet_id, $months]);
-$appointments = $stmt->fetchAll();
+    WHERE a.pet_id = '$pet_id'
+    AND a.tanggal_appointment >= DATE_SUB(CURDATE(), INTERVAL $months MONTH)
+    ORDER BY a.tanggal_appointment DESC");
+$appointments = [];
+while ($row = mysqli_fetch_assoc($result)) {
+    $appointments[] = $row;
+}
 
 // Get weight history
-$stmt = $pdo->prepare("
-    SELECT 
-        tanggal_kunjungan as tanggal,
-        berat_badan_saat_periksa as berat
-    FROM medical_record
-    WHERE pet_id = ? 
-    AND berat_badan_saat_periksa IS NOT NULL
-    AND tanggal_kunjungan >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
-    ORDER BY tanggal_kunjungan ASC
-");
-$stmt->execute([$pet_id, $months]);
-$weight_history = $stmt->fetchAll();
+$result = mysqli_query($conn, "SELECT tanggal_kunjungan as tanggal, berat_badan as berat
+    FROM medical_record WHERE pet_id = '$pet_id' 
+    AND berat_badan IS NOT NULL
+    AND tanggal_kunjungan >= DATE_SUB(CURDATE(), INTERVAL $months MONTH)
+    ORDER BY tanggal_kunjungan ASC");
+$weight_history = [];
+while ($row = mysqli_fetch_assoc($result)) {
+    $weight_history[] = $row;
+}
 
 // Combine all events for timeline
 $timeline_events = array_merge($medical_records, $appointments);
@@ -80,12 +63,11 @@ usort($timeline_events, function($a, $b) {
 
 // Calculate health stats
 $total_visits = count($medical_records);
-$upcoming_appointments = count(array_filter($appointments, function($a) {
-    return $a['status'] != 'Completed' && $a['status'] != 'Cancelled';
-}));
+$upcoming_appointments = count($appointments);
 
 $page_title = "Health Timeline - " . $pet['nama_hewan'];
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -196,15 +178,37 @@ $page_title = "Health Timeline - " . $pet['nama_hewan'];
                     <?php foreach ($timeline_events as $event): 
                         $icon_colors = [
                             'medical' => ['icon' => 'stethoscope', 'bg' => 'bg-blue-100', 'text' => 'text-blue-600'],
-                            <?php if ($event['type'] === 'appointment' && isset($event['status'])): ?>
-                                <div class="mt-2">
-                                    <span class="text-xs px-2 py-1 rounded <?= $event['status'] === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800' ?>">
-                                        <?= $event['status'] ?>
+                            'appointment' => ['icon' => 'calendar-check', 'bg' => 'bg-purple-100', 'text' => 'text-purple-600']
+                        ];
+                        $colors = $icon_colors[$event['type']];
+                    ?>
+                        <div class="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50 transition">
+                            <div class="<?= $colors['bg'] ?> w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-<?= $colors['icon'] ?> <?= $colors['text'] ?>"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-semibold text-gray-800"><?= htmlspecialchars($event['title']) ?></h4>
+                                    <span class="text-sm text-gray-500">
+                                        <?= date('M d, Y', strtotime($event['tanggal'])) ?>
                                     </span>
                                 </div>
-                            <?php endif; ?>
+                                <p class="text-gray-600 text-sm mt-1"><?= htmlspecialchars($event['description'] ?? '-') ?></p>
+                                <p class="text-gray-500 text-xs mt-1">
+                                    <i class="fas fa-user-md mr-1"></i><?= htmlspecialchars($event['dokter']) ?>
+                                </p>
+                                <?php if ($event['type'] === 'medical' && isset($event['berat'])): ?>
+                                    <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                                        <?php if ($event['berat']): ?>
+                                            <span><i class="fas fa-weight mr-1"></i><?= $event['berat'] ?> kg</span>
+                                        <?php endif; ?>
+                                        <?php if (isset($event['suhu']) && $event['suhu']): ?>
+                                            <span><i class="fas fa-thermometer-half mr-1"></i><?= $event['suhu'] ?>°C</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                    </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>

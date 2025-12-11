@@ -20,164 +20,34 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-i
 
 $page_title = 'Janji Temu';
 
-// Initialize variables
-$page = isset($_GET['page']) ? (int)clean_input($_GET['page']) : 1;
-$per_page = 10;
-$offset = ($page - 1) * $per_page;
-
-// Get filters with proper sanitization
-$search = isset($_GET['search']) ? clean_input($_GET['search']) : '';
-$status = isset($_GET['status']) ? clean_input($_GET['status']) : '';
-$date_from = isset($_GET['date_from']) ? clean_input($_GET['date_from']) : '';
-$date_to = isset($_GET['date_to']) ? clean_input($_GET['date_to']) : '';
-$dokter_id = isset($_GET['dokter_id']) ? (int)clean_input($_GET['dokter_id']) : 0;
-
-// Validate date range only if both dates are provided
-if ($date_from && $date_to && !validate_date_range($date_from, $date_to)) {
-    $_SESSION['error'] = "Range tanggal tidak valid";
-    $date_from = '';
-    $date_to = '';
-}
-
-// Build secure query with prepared statements
+// Build simple query without filters
 $query = "
     SELECT 
         a.*,
         p.nama_hewan,
         o.nama_lengkap as owner_name,
         o.no_telepon as owner_phone,
-        v.nama_dokter as dokter_name,
-        a.jenis_layanan as nama_layanan
+        v.nama_dokter as dokter_name
     FROM appointment a
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN users o ON a.owner_id = o.user_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
     LEFT JOIN medical_record mr ON a.appointment_id = mr.appointment_id
     WHERE mr.record_id IS NULL
+    ORDER BY a.tanggal_appointment ASC
 ";
 
-$params = [];
-
-if ($search) {
-    $query .= " AND (p.nama_hewan LIKE ? OR o.nama_lengkap LIKE ? OR o.no_telepon LIKE ?)";
-    $search_param = "%$search%";
-    $params = array_merge($params, [$search_param, $search_param, $search_param]);
-}
-
-if ($status) {
-    $query .= " AND a.status = ?";
-    $params[] = $status;
-}
-
-if ($date_from && $date_to) {
-    $query .= " AND a.tanggal_appointment BETWEEN ? AND ?";
-    $params[] = $date_from;
-    $params[] = $date_to;
-}
-
-if ($dokter_id) {
-    $query .= " AND a.dokter_id = ?";
-    $params[] = $dokter_id;
-}
-
-// Get total records for pagination
-$count_query = str_replace("SELECT a.*, p.nama_hewan", "SELECT COUNT(*)", $query);
-$stmt = $pdo->prepare($count_query);
-$stmt->execute($params);
-$total_records = $stmt->fetchColumn();
-$total_pages = ceil($total_records / $per_page);
-
-// Add sorting and limit
-$query .= " ORDER BY a.tanggal_appointment ASC, a.jam_appointment ASC LIMIT ? OFFSET ?";
-$params[] = $per_page;
-$params[] = $offset;
-
-// Execute final query
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$appointments = $stmt->fetchAll();
-
-// Get all doctors for filter
-$doctors_stmt = $pdo->query("SELECT dokter_id, nama_dokter FROM veterinarian WHERE status = 'Aktif' ORDER BY nama_dokter");
-$doctors = $doctors_stmt->fetchAll();
+// Execute query
+$result = mysqli_query($conn, $query);
+$appointments = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
 
 <div class="container mx-auto px-4 py-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Janji Temu</h2>
-        <div class="flex gap-2">
-            <a href="calendar.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-                <i class="fas fa-calendar-alt mr-2"></i> Kalender
-            </a>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <form action="" method="GET" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <!-- Search -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Pencarian</label>
-                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>"
-                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       placeholder="Nama/Telepon...">
-            </div>
-
-            <!-- Date Range -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Dari Tanggal</label>
-                <input type="date" name="date_from" value="<?php echo $date_from; ?>"
-                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Sampai Tanggal</label>
-                <input type="date" name="date_to" value="<?php echo $date_to; ?>"
-                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <!-- Status -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select name="status" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Semua Status</option>
-                    <option value="Pending" <?php echo $status === 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                    <option value="Confirmed" <?php echo $status === 'Confirmed' ? 'selected' : ''; ?>>Confirmed</option>
-                    <option value="Completed" <?php echo $status === 'Completed' ? 'selected' : ''; ?>>Completed</option>
-                    <option value="Cancelled" <?php echo $status === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                    <option value="No_Show" <?php echo $status === 'No_Show' ? 'selected' : ''; ?>>No Show</option>
-                </select>
-            </div>
-
-            <!-- Doctor -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Dokter</label>
-                <select name="dokter_id" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Semua Dokter</option>
-                    <?php foreach ($doctors as $doctor): ?>
-                        <option value="<?php echo $doctor['dokter_id']; ?>"
-                                <?php echo $dokter_id === $doctor['dokter_id'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($doctor['nama_lengkap']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Filter Buttons -->
-            <div class="md:col-span-3 lg:col-span-5 flex gap-2 justify-end">
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-search mr-2"></i> Filter
-                </button>
-                <?php if ($search || $status || $dokter_id || $date_from != date('Y-m-d') || $date_to != date('Y-m-d', strtotime('+7 days'))): ?>
-                    <a href="?" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
-                        <i class="fas fa-times mr-2"></i> Reset
-                    </a>
-                <?php endif; ?>
-            </div>
-        </form>
     </div>
 
     <!-- Appointments List -->
@@ -196,9 +66,6 @@ include '../../includes/header.php';
                             Layanan & Dokter
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Aksi
                         </th>
                     </tr>
@@ -206,7 +73,7 @@ include '../../includes/header.php';
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php if (empty($appointments)): ?>
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                                 Tidak ada data janji temu
                             </td>
                         </tr>
@@ -215,10 +82,7 @@ include '../../includes/header.php';
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">
-                                        <?php echo date('d/m/Y', strtotime($appointment['tanggal_appointment'])); ?>
-                                    </div>
-                                    <div class="text-sm text-gray-500">
-                                        <?php echo date('H:i', strtotime($appointment['jam_appointment'])); ?>
+                                        <?php echo date('d M Y', strtotime($appointment['tanggal_appointment'])); ?>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
@@ -231,30 +95,21 @@ include '../../includes/header.php';
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        <?php echo htmlspecialchars($appointment['nama_layanan']); ?>
-                                    </div>
                                     <div class="text-sm text-gray-500">
                                         <?php echo htmlspecialchars($appointment['dokter_name']); ?>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4">
-                                    <?php echo get_appointment_status_badge($appointment['status']); ?>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <?php if ($appointment['status'] === 'Pending'): ?>
-                                        <button onclick="confirmApprove(<?php echo $appointment['appointment_id']; ?>, '<?php echo htmlspecialchars($appointment['nama_hewan']); ?>')" 
-                                                class="text-green-600 hover:text-green-900 mr-3">
-                                            <i class="fas fa-check-circle"></i> ACC
-                                        </button>
-                                    <?php elseif ($appointment['status'] === 'Confirmed'): ?>
-                                        <a href="../medical-records/create.php?appointment_id=<?php echo $appointment['appointment_id']; ?>"
-                                           class="text-purple-600 hover:text-purple-900 mr-3">
-                                            <i class="fas fa-notes-medical"></i> Buat Rekam Medis
-                                        </a>
-                                    <?php endif; ?>
+                                    <a href="../medical-records/create.php?appointment_id=<?php echo $appointment['appointment_id']; ?>"
+                                       class="text-purple-600 hover:text-purple-900 mr-3">
+                                        <i class="fas fa-notes-medical"></i> Rekam Medis
+                                    </a>
+                                    <a href="detail.php?id=<?php echo $appointment['appointment_id']; ?>"
+                                       class="text-blue-600 hover:text-blue-900 mr-3">
+                                        <i class="fas fa-eye"></i> Detail
+                                    </a>
                                     <a href="edit.php?id=<?php echo $appointment['appointment_id']; ?>"
-                                       class="text-blue-600 hover:text-blue-900">
+                                       class="text-indigo-600 hover:text-indigo-900">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
                                 </td>
@@ -265,79 +120,14 @@ include '../../includes/header.php';
             </table>
         </div>
     </div>
-
-    <!-- Pagination -->
-    <?php if ($total_pages > 1): ?>
-        <div class="mt-6 flex justify-between items-center">
-            <div class="text-sm text-gray-600">
-                Showing <?php echo $offset + 1; ?> to <?php echo min($offset + $per_page, $total_records); ?> 
-                of <?php echo $total_records; ?> entries
-            </div>
-            <div class="flex space-x-1">
-                <?php if ($page > 1): ?>
-                    <a href="?page=<?php echo ($page - 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&dokter_id=<?php echo $dokter_id; ?>&date_from=<?php echo $date_from; ?>&date_to=<?php echo $date_to; ?>"
-                       class="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-blue-50">
-                        Previous
-                    </a>
-                <?php endif; ?>
-                
-                <?php if ($page < $total_pages): ?>
-                    <a href="?page=<?php echo ($page + 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&dokter_id=<?php echo $dokter_id; ?>&date_from=<?php echo $date_from; ?>&date_to=<?php echo $date_to; ?>"
-                       class="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-blue-50">
-                        Next
-                    </a>
-                <?php endif; ?>
-            </div>
-        </div>
-    <?php endif; ?>
 </div>
 
 <script>
-function confirmApprove(id, name) {
-    Swal.fire({
-        title: 'Konfirmasi ACC',
-        text: `Setujui janji temu untuk ${name}?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#10B981',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Ya, Setujui!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `approve.php?id=${id}`;
-        }
-    });
-}
-
 function confirmDelete(id, name) {
-    Swal.fire({
-        title: 'Konfirmasi Hapus',
-        text: `Apakah Anda yakin ingin menghapus janji temu untuk ${name}?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Ya, Hapus!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `delete.php?id=${id}`;
-        }
-    });
+    if (confirm(`Apakah Anda yakin ingin menghapus janji temu untuk ${name}?`)) {
+        window.location.href = `delete.php?id=${id}`;
+    }
 }
-
-// Enable DataTables
-$(document).ready(function() {
-    $('.datatable').DataTable({
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json'
-        },
-        pageLength: 10,
-        ordering: true,
-        responsive: true
-    });
-});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

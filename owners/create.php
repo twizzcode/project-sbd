@@ -14,13 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // Get and sanitize input
-    $username = clean_input($_POST['username']);
+    $username = $_POST['username'];
     $password = $_POST['password'];
-    $nama_lengkap = clean_input($_POST['nama_lengkap']);
-    $alamat = clean_input($_POST['alamat']);
-    $no_telepon = clean_input($_POST['no_telepon']);
-    $email = clean_input($_POST['email']);
-    $catatan = clean_input($_POST['catatan'] ?? '');
+    $nama_lengkap = $_POST['nama_lengkap'];
+    $alamat = $_POST['alamat'];
+    $no_telepon = $_POST['no_telepon'];
+    $email = $_POST['email'];
+    $catatan = ($_POST['catatan'] ?? '');
 
     // Validate required fields
     if (empty($username)) {
@@ -51,41 +51,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Check if username or email already exists
     if (!empty($username)) {
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        if ($stmt->rowCount() > 0) {
+        $result = mysqli_query($conn, "SELECT user_id FROM users WHERE username = ?");
+        
+        if (mysqli_num_rows($result) > 0) {
             $errors[] = 'Username sudah digunakan';
         }
     }
     
     if (!empty($email)) {
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->rowCount() > 0) {
+        $result = mysqli_query($conn, "SELECT user_id FROM users WHERE email = '$email'");
+        if (mysqli_num_rows($result) > 0) {
             $errors[] = 'Email sudah terdaftar';
         }
     }
 
     // If no errors, insert into database
     if (empty($errors)) {
-        try {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            
-            $stmt = $pdo->prepare("
-                INSERT INTO users (username, password, email, nama_lengkap, role, no_telepon, alamat, status)
-                VALUES (?, ?, ?, ?, 'Owner', ?, ?, 'Aktif')
-            ");
-            
-            $stmt->execute([$username, $hashed_password, $email, $nama_lengkap, $no_telepon, $alamat]);
-            
-            // Set success message and redirect
-            $_SESSION['success'] = 'Data pemilik berhasil ditambahkan';
-            header('Location: index.php');
-            exit;
-            
-        } catch (PDOException $e) {
-            $errors[] = 'Terjadi kesalahan: ' . $e->getMessage();
-        }
+        mysqli_query($conn, "INSERT INTO users (username, password, email, nama_lengkap, role, no_telepon, alamat, status)
+            VALUES ('$username', '$password', '$email', '$nama_lengkap', 'Owner', '$no_telepon', '$alamat', 'Aktif')");
+        
+        $_SESSION['success'] = 'Data pemilik berhasil ditambahkan';
+        header('Location: index.php');
+        exit;
     }
 }
 

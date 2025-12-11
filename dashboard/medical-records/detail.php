@@ -24,7 +24,7 @@ if (!$record_id) {
 }
 
 // Get record data
-$record = get_medical_record($pdo, $record_id);
+$record = get_medical_record($conn, $record_id);
 
 if (!$record) {
     $_SESSION['error'] = "Data rekam medis tidak ditemukan";
@@ -55,7 +55,7 @@ include '../../includes/header.php';
                 <i class="fas fa-arrow-left mr-2"></i> Kembali
             </a>
 
-            <?php if ($record['status'] === 'Active' && in_array($_SESSION['role'], ['Admin', 'Dokter'])): ?>
+            <?php if (in_array($_SESSION['role'], ['Admin', 'Dokter'])): ?>
                 <a href="edit.php?id=<?php echo $record_id; ?>" 
                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
                     <i class="fas fa-edit mr-2"></i> Edit
@@ -78,10 +78,7 @@ include '../../includes/header.php';
         <div class="lg:col-span-2 space-y-6">
             <!-- Medical Record Details -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Informasi Rekam Medis</h3>
-                    <?php echo get_medical_record_status_badge($record['status']); ?>
-                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Informasi Rekam Medis</h3>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Status and Schedule -->
@@ -99,27 +96,6 @@ include '../../includes/header.php';
                                     <i class="fas fa-calendar-check mr-1"></i>
                                     Lihat Detail Janji Temu
                                 </a>
-                            </p>
-                        <?php endif; ?>
-                    </div>
-
-                    <!-- Created/Updated Info -->
-                    <div>
-                        <p class="text-sm text-gray-600 mb-1">Dibuat Oleh</p>
-                        <p class="font-medium mb-4">
-                            <?php echo htmlspecialchars($record['created_by_name']); ?><br>
-                            <span class="text-sm text-gray-600">
-                                <?php echo date('d/m/Y H:i', strtotime($record['created_at'])); ?>
-                            </span>
-                        </p>
-
-                        <?php if ($record['updated_by']): ?>
-                            <p class="text-sm text-gray-600 mb-1">Terakhir Diubah</p>
-                            <p class="font-medium mb-4">
-                                <?php echo htmlspecialchars($record['updated_by_name']); ?><br>
-                                <span class="text-sm text-gray-600">
-                                    <?php echo date('d/m/Y H:i', strtotime($record['updated_at'])); ?>
-                                </span>
                             </p>
                         <?php endif; ?>
                     </div>
@@ -220,21 +196,9 @@ include '../../includes/header.php';
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Informasi Pasien</h3>
                 
                 <div class="flex items-start gap-4 mb-4">
-                    <?php if ($record['pet_foto']): ?>
-                        <?php 
-                        $rec_pet_foto_src = (strpos($record['pet_foto'], 'http') === 0) 
-                            ? $record['pet_foto'] 
-                            : '/vetclinic/assets/images/uploads/' . $record['pet_foto'];
-                        ?>
-                        <img src="<?php echo $rec_pet_foto_src; ?>"
-                             alt="<?php echo htmlspecialchars($record['nama_hewan']); ?>"
-                             class="w-20 h-20 rounded-lg object-cover"
-                             onerror="this.src='https://via.placeholder.com/80?text=Pet'">
-                    <?php else: ?>
-                        <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-paw text-gray-400 text-2xl"></i>
-                        </div>
-                    <?php endif; ?>
+                    <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-paw text-gray-400 text-2xl"></i>
+                    </div>
                     
                     <div>
                         <h4 class="font-bold text-lg">
@@ -268,21 +232,9 @@ include '../../includes/header.php';
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Informasi Dokter</h3>
                 
                 <div class="flex items-start gap-4">
-                    <?php if ($record['dokter_foto']): ?>
-                        <?php 
-                        $rec_dokter_foto_src = (strpos($record['dokter_foto'], 'http') === 0) 
-                            ? $record['dokter_foto'] 
-                            : '/vetclinic/assets/images/uploads/' . $record['dokter_foto'];
-                        ?>
-                        <img src="<?php echo $rec_dokter_foto_src; ?>"
-                             alt="Dr. <?php echo htmlspecialchars($record['dokter_name']); ?>"
-                             class="w-20 h-20 rounded-lg object-cover"
-                             onerror="this.src='https://via.placeholder.com/80?text=Dr'">
-                    <?php else: ?>
-                        <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user-md text-gray-400 text-2xl"></i>
-                        </div>
-                    <?php endif; ?>
+                    <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-user-md text-gray-400 text-2xl"></i>
+                    </div>
                     
                     <div>
                         <h4 class="font-bold text-lg">

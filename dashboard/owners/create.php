@@ -16,13 +16,13 @@ $errors = [];
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = clean_input($_POST['username'] ?? '');
-    $email = clean_input($_POST['email'] ?? '');
+    $username = $_POST['username'] ?? '';
+    $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
-    $nama_lengkap = clean_input($_POST['nama_lengkap'] ?? '');
-    $no_telepon = clean_input($_POST['no_telepon'] ?? '');
-    $alamat = clean_input($_POST['alamat'] ?? '');
+    $nama_lengkap = $_POST['nama_lengkap'] ?? '';
+    $no_telepon = $_POST['no_telepon'] ?? '';
+    $alamat = $_POST['alamat'] ?? '';
     
     // Validation
     if (empty($username)) {
@@ -55,18 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Check if username already exists
     if (empty($errors)) {
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        if ($stmt->fetch()) {
+        $username_check = mysqli_real_escape_string($conn, $username);
+        $result = mysqli_query($conn, "SELECT user_id FROM users WHERE username = '$username_check'");
+        
+        if (mysqli_fetch_assoc($result)) {
             $errors[] = "Username sudah digunakan";
         }
     }
     
     // Check if email already exists
     if (empty($errors)) {
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
+        $email_check = mysqli_real_escape_string($conn, $email);
+        $result = mysqli_query($conn, "SELECT user_id FROM users WHERE email = '$email_check'");
+        
+        if (mysqli_fetch_assoc($result)) {
             $errors[] = "Email sudah digunakan";
         }
     }
@@ -74,28 +76,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Insert if no errors
     if (empty($errors)) {
         try {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            
-            $stmt = $pdo->prepare("
+            $result = mysqli_query($conn, "
                 INSERT INTO users (username, email, password, nama_lengkap, no_telepon, alamat, role, status)
-                VALUES (?, ?, ?, ?, ?, ?, 'Owner', 'Aktif')
+                VALUES ('$username', '$email', '$password', '$nama_lengkap', '$no_telepon', '$alamat', 'Owner', 'Aktif')
             ");
-            
-            $stmt->execute([
-                $username,
-                $email,
-                $hashed_password,
-                $nama_lengkap,
-                $no_telepon,
-                $alamat
-            ]);
             
             $_SESSION['success'] = "Pemilik hewan berhasil ditambahkan";
             header("Location: index.php");
             exit;
-            
-        } catch (PDOException $e) {
-            $errors[] = "Gagal menambahkan pemilik: " . $e->getMessage();
+        } catch (Exception $e) {
+            $errors[] = "Gagal menambahkan data: " . $e->getMessage();
         }
     }
 }

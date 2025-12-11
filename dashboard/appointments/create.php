@@ -15,17 +15,17 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-i
 $page_title = 'Buat Janji Temu';
 
 // Get active doctors
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT dokter_id, nama_dokter, spesialisasi, jadwal_praktek
     FROM veterinarian 
     WHERE status = 'Aktif'
     ORDER BY nama_dokter
 ");
-$stmt->execute();
-$doctors = $stmt->fetchAll();
+
+$doctors = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get pets with their owners
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         p.pet_id,
         p.nama_hewan,
@@ -38,8 +38,8 @@ $stmt = $pdo->prepare("
     WHERE p.status = 'Aktif'
     ORDER BY o.nama_lengkap, p.nama_hewan
 ");
-$stmt->execute();
-$pets = $stmt->fetchAll();
+
+$pets = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,67 +50,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Start transaction
-        $pdo->beginTransaction();
+        mysqli_begin_transaction($conn);
 
         // Validate and sanitize input
         $pet_id = filter_var($_POST['pet_id'], FILTER_VALIDATE_INT);
         $dokter_id = filter_var($_POST['dokter_id'], FILTER_VALIDATE_INT);
-        $jenis_layanan = clean_input($_POST['jenis_layanan'] ?? 'Konsultasi Umum');
-        $tanggal = clean_input($_POST['tanggal']);
-        $jam_appointment = clean_input($_POST['jam_appointment']);
-        $keluhan = clean_input($_POST['keluhan']);
-        $catatan = clean_input($_POST['catatan'] ?? '');
+        $jenis_layanan = $_POST['jenis_layanan'] ?? 'Konsultasi Umum';
+        $tanggal = $_POST['tanggal'];
+        $keluhan = $_POST['keluhan'];
+        $catatan = $_POST['catatan'] ?? '';
 
         // Validate required fields
-        if (!$pet_id || !$dokter_id || !$tanggal || !$jam_appointment || !$keluhan) {
+        if (!$pet_id || !$dokter_id || !$tanggal || !$keluhan) {
             throw new Exception('Semua field wajib diisi');
         }
 
-        // Validate date and time
-        if (!validate_appointment_datetime($tanggal, $jam_appointment)) {
-            throw new Exception('Tanggal dan jam tidak valid');
-        }
-
-        // Check doctor availability
-        if (!is_doctor_available($pdo, $dokter_id, $tanggal, $jam_appointment, null)) {
-            throw new Exception('Dokter sudah memiliki janji temu pada waktu yang dipilih');
-        }
-
         // Get owner_id from pet
-        $stmt = $pdo->prepare("SELECT owner_id FROM pet WHERE pet_id = ?");
-        $stmt->execute([$pet_id]);
-        $owner_id = $stmt->fetchColumn();
+        $result = mysqli_query($conn, "SELECT owner_id FROM pet WHERE pet_id = '$pet_id'");
+        
+        $owner_id = mysqli_fetch_row($result)[0];
 
         if (!$owner_id) {
             throw new Exception('Data hewan tidak valid');
         }
 
         // Insert appointment
-        $stmt = $pdo->prepare("
+        $result = mysqli_query($conn, "
             INSERT INTO appointment (
-                pet_id, owner_id, dokter_id, jenis_layanan, 
-                tanggal_appointment, jam_appointment, 
-                keluhan_awal, catatan, status, created_at
+                pet_id, owner_id, dokter_id,
+                tanggal_appointment, 
+                keluhan_awal, catatan, created_at
             ) VALUES (
-                ?, ?, ?, ?,
-                ?, ?,
-                ?, ?, 'Pending', CURRENT_TIMESTAMP
+                '$pet_id', '$owner_id', '$dokter_id',
+                '$tanggal',
+                '$keluhan', '$catatan', CURRENT_TIMESTAMP
             )
         ");
 
-        $stmt->execute([
-            $pet_id, $owner_id, $dokter_id, $jenis_layanan,
-            $tanggal, $jam_appointment,
-            $keluhan, $catatan
-        ]);
+        
 
-        $appointment_id = $pdo->lastInsertId();
+        $appointment_id = mysqli_insert_id($conn);
 
         // Create notification for owner
-        create_notification($pdo, $owner_id, 'appointment_created', $appointment_id);
+        create_notification($conn, $owner_id, 'appointment_created', $appointment_id);
 
         // Commit transaction
-        $pdo->commit();
+        mysqli_commit($conn);
 
         // Set success message and redirect
         $_SESSION['success'] = 'Janji temu berhasil dibuat';
@@ -119,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (Exception $e) {
         // Rollback transaction on error
-        $pdo->rollBack();
+        mysqli_rollback($conn);
         $_SESSION['error'] = $e->getMessage();
     }
 }
@@ -183,7 +168,6 @@ include '../../includes/header.php';
                     <option value="">Pilih Dokter</option>
                     <?php foreach ($doctors as $doctor): ?>
                         <option value="<?php echo $doctor['dokter_id']; ?>"
-                                data-schedule="<?php echo htmlspecialchars($doctor['jadwal_praktek'] ?? 'Senin-Jumat 08:00-17:00'); ?>">
                             <?php echo htmlspecialchars($doctor['nama_dokter']); ?> 
                             <?php if ($doctor['spesialisasi']): ?>
                                 - <?php echo htmlspecialchars($doctor['spesialisasi']); ?>
@@ -203,16 +187,6 @@ include '../../includes/header.php';
                     <input type="date" name="tanggal" id="tanggal" required
                            min="<?php echo date('Y-m-d'); ?>"
                            class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2" for="jam_appointment">
-                        Jam <span class="text-red-500">*</span>
-                    </label>
-                    <input type="time" name="jam_appointment" id="jam_appointment" required
-                           min="08:00" max="20:00"
-                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <p class="mt-1 text-xs text-gray-500">Jam praktek: 08:00 - 20:00</p>
                 </div>
             </div>
 

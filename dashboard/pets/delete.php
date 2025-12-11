@@ -15,20 +15,23 @@ if (!$pet_id) {
 
 try {
     // Start transaction
-    $pdo->beginTransaction();
+    mysqli_begin_transaction($conn);
 
     // Delete pet record (CASCADE will delete related appointments and medical records)
-    $stmt = $pdo->prepare("DELETE FROM pet WHERE pet_id = ?");
-    $stmt->execute([$pet_id]);
+    $result = mysqli_query($conn, "DELETE FROM pet WHERE pet_id = '$pet_id'");
+    
+    if (!$result) {
+        throw new Exception(mysqli_error($conn));
+    }
 
     // Commit transaction
-    $pdo->commit();
+    mysqli_commit($conn);
 
     $_SESSION['success'] = "Data hewan berhasil dihapus";
 
 } catch (Exception $e) {
     // Rollback transaction on error
-    $pdo->rollBack();
+    mysqli_rollback($conn);
     $_SESSION['error'] = "Error: " . $e->getMessage();
 }
 

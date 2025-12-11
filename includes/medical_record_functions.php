@@ -48,78 +48,42 @@ function validate_medical_record($data, $isNew = true) {
 /**
  * Create medical record history entry
  */
-function create_medical_record_history($pdo, $record_id, $action, $old_status = null, $new_status = null, $notes = null) {
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO medical_record_history (
-                record_id, action, old_status, new_status, 
-                notes, performed_by, performed_at
-            ) VALUES (
-                ?, ?, ?, ?, 
-                ?, ?, NOW()
-            )
-        ");
-
-        return $stmt->execute([
-            $record_id,
-            $action,
-            $old_status,
-            $new_status,
-            $notes,
-            $_SESSION['user_id']
-        ]);
-    } catch (PDOException $e) {
-        error_log("Error creating medical record history: " . $e->getMessage());
-        return false;
-    }
+function create_medical_record_history($conn, $record_id, $action, $old_status = null, $new_status = null, $notes = null) {
+    $user_id = $_SESSION['user_id'];
+    mysqli_query($conn, "INSERT INTO medical_record_history (record_id, action, old_status, new_status, notes, performed_by, performed_at)
+        VALUES ('$record_id', '$action', '$old_status', '$new_status', '$notes', '$user_id', NOW())");
+    return mysqli_affected_rows($conn) > 0;
 }
 
 /**
  * Get medical record by ID with related data
  */
-function get_medical_record($pdo, $record_id) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                mr.*,
-                mr.tanggal_kunjungan as tanggal,
-                mr.diagnosis,
-                mr.resep,
-                mr.catatan_dokter as catatan,
-                'Active' as status,
-                mr.tanggal_kunjungan as created_at,
-                mr.biaya,
-                NULL as created_by,
-                NULL as updated_by,
-                NULL as updated_at,
-                '' as created_by_name,
-                '' as updated_by_name,
-                p.nama_hewan,
-                p.jenis as jenis_hewan,
-                p.ras as ras_hewan,
-                p.foto_url as pet_foto,
-                o.nama_lengkap as owner_name,
-                o.no_telepon as owner_phone,
-                o.email as owner_email,
-                v.nama_dokter as dokter_name,
-                v.spesialisasi as dokter_spesialisasi,
-                v.foto_url as dokter_foto,
-                a.tanggal_appointment as appointment_date,
-                a.jam_appointment as appointment_time
-            FROM medical_record mr
-            JOIN pet p ON mr.pet_id = p.pet_id
-            JOIN users o ON p.owner_id = o.user_id
-            JOIN veterinarian v ON mr.dokter_id = v.dokter_id
-            LEFT JOIN appointment a ON mr.appointment_id = a.appointment_id
-            WHERE mr.record_id = ?
-        ");
-        
-        $stmt->execute([$record_id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Error getting medical record: " . $e->getMessage());
-        return null;
-    }
+function get_medical_record($conn, $record_id) {
+    $result = mysqli_query($conn, "
+        SELECT 
+            mr.*,
+            mr.tanggal_kunjungan as tanggal,
+            mr.diagnosis,
+            mr.resep,
+            mr.catatan_dokter as catatan,
+            p.nama_hewan,
+            p.jenis as jenis_hewan,
+            p.ras as ras_hewan,
+            o.nama_lengkap as owner_name,
+            o.no_telepon as owner_phone,
+            o.email as owner_email,
+            v.nama_dokter as dokter_name,
+            v.spesialisasi as dokter_spesialisasi,
+            a.tanggal_appointment as appointment_date
+        FROM medical_record mr
+        JOIN pet p ON mr.pet_id = p.pet_id
+        JOIN users o ON p.owner_id = o.user_id
+        JOIN veterinarian v ON mr.dokter_id = v.dokter_id
+        LEFT JOIN appointment a ON mr.appointment_id = a.appointment_id
+        WHERE mr.record_id = '$record_id'
+    ");
+    
+    return mysqli_fetch_assoc($result);
 }
 
 /**
@@ -180,94 +144,81 @@ function handle_medical_record_attachments($files, $record_id) {
 /**
  * Save medical record attachments to database
  */
-function save_medical_record_attachments($pdo, $record_id, $attachments) {
-    try {
-        $stmt = $pdo->prepare("
+function save_medical_record_attachments($conn, $record_id, $attachments) {
+    $success = true;
+    
+    foreach ($attachments as $file) {
+        $original_name = $file['original_name'];
+        $stored_name = $file['stored_name'];
+        $file_type = $file['file_type'];
+        $file_size = $file['file_size'];
+        $user_id = $_SESSION['user_id'];
+        
+        $result = mysqli_query($conn, "
             INSERT INTO medical_record_attachment (
                 record_id, original_name, stored_name, 
                 file_type, file_size, uploaded_by, 
                 uploaded_at
             ) VALUES (
-                ?, ?, ?, 
-                ?, ?, ?, 
+                '$record_id', '$original_name', '$stored_name', 
+                '$file_type', '$file_size', '$user_id', 
                 NOW()
             )
         ");
-
-        foreach ($attachments as $file) {
-            $stmt->execute([
-                $record_id,
-                $file['original_name'],
-                $file['stored_name'],
-                $file['file_type'],
-                $file['file_size'],
-                $_SESSION['user_id']
-            ]);
+        
+        if (!$result) {
+            $success = false;
         }
-
-        return true;
-    } catch (PDOException $e) {
-        error_log("Error saving medical record attachments: " . $e->getMessage());
-        return false;
     }
+
+    return $success;
 }
 
 /**
  * Get medical record attachments
  */
-function get_medical_record_attachments($pdo, $record_id) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                ma.*,
-                u.nama_lengkap as uploaded_by_name
-            FROM medical_record_attachment ma
-            LEFT JOIN users u ON ma.uploaded_by = u.user_id
-            WHERE ma.record_id = ?
-            ORDER BY ma.uploaded_at DESC
-        ");
-        
-        $stmt->execute([$record_id]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Error getting medical record attachments: " . $e->getMessage());
-        return [];
-    }
+function get_medical_record_attachments($conn, $record_id) {
+    $result = mysqli_query($conn, "
+        SELECT 
+            ma.*,
+            u.nama_lengkap as uploaded_by_name
+        FROM medical_record_attachment ma
+        LEFT JOIN users u ON ma.uploaded_by = u.user_id
+        WHERE ma.record_id = '$record_id'
+        ORDER BY ma.uploaded_at DESC
+    ");
+    
+    return mysqli_fetch_all($result, MYSQLI_ASSOC);
 }
 
 /**
  * Delete medical record attachment
  */
-function delete_medical_record_attachment($pdo, $attachment_id) {
-    try {
-        // Get attachment info first
-        $stmt = $pdo->prepare("
-            SELECT * FROM medical_record_attachment 
-            WHERE attachment_id = ?
-        ");
-        $stmt->execute([$attachment_id]);
-        $attachment = $stmt->fetch();
+function delete_medical_record_attachment($conn, $attachment_id) {
+    // Get attachment info first
+    $result = mysqli_query($conn, "
+        SELECT * FROM medical_record_attachment 
+        WHERE attachment_id = '$attachment_id'
+    ");
+    
+    $attachment = mysqli_fetch_assoc($result);
 
-        if ($attachment) {
-            // Delete file
-            $filepath = "../assets/uploads/medical_records/{$attachment['record_id']}/{$attachment['stored_name']}";
-            if (file_exists($filepath)) {
-                unlink($filepath);
-            }
-
-            // Delete from database
-            $stmt = $pdo->prepare("
-                DELETE FROM medical_record_attachment 
-                WHERE attachment_id = ?
-            ");
-            return $stmt->execute([$attachment_id]);
+    if ($attachment) {
+        // Delete file
+        $filepath = "../assets/uploads/medical_records/{$attachment['record_id']}/{$attachment['stored_name']}";
+        if (file_exists($filepath)) {
+            unlink($filepath);
         }
 
-        return false;
-    } catch (PDOException $e) {
-        error_log("Error deleting medical record attachment: " . $e->getMessage());
-        return false;
+        // Delete from database
+        $result = mysqli_query($conn, "
+            DELETE FROM medical_record_attachment 
+            WHERE attachment_id = '$attachment_id'
+        ");
+        return mysqli_affected_rows($conn) > 0;
     }
+
+    return false;
 }
 
 /**

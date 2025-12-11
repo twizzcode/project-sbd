@@ -7,8 +7,8 @@ require_once '../../includes/functions.php';
 $page_title = 'Manajemen Dokter';
 
 // Get all veterinarians
-$stmt = $pdo->query("SELECT * FROM veterinarian ORDER BY nama_dokter");
-$veterinarians = $stmt->fetchAll();
+$result = mysqli_query($conn, "SELECT * FROM veterinarian ORDER BY nama_dokter");
+$veterinarians = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>

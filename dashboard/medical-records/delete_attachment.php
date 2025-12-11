@@ -31,14 +31,14 @@ if (!$attachment_id || !$record_id) {
 
 // Get attachment info
 try {
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         SELECT ma.*, mr.status as record_status 
         FROM medical_record_attachment ma
         JOIN medical_record mr ON ma.record_id = mr.record_id
         WHERE ma.attachment_id = ? AND ma.record_id = ?
     ");
-    $stmt->execute([$attachment_id, $record_id]);
-    $attachment = $stmt->fetch();
+    
+    $attachment = mysqli_fetch_assoc($result);
 
     if (!$attachment) {
         $_SESSION['error'] = "Data lampiran tidak ditemukan";
@@ -54,7 +54,7 @@ try {
     }
 
     // Start transaction
-    $pdo->beginTransaction();
+    mysqli_begin_transaction($conn);
 
     // Delete file from storage
     $filepath = "../assets/uploads/medical_records/{$record_id}/{$attachment['stored_name']}";
@@ -65,7 +65,7 @@ try {
     }
 
     // Delete from database
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         DELETE FROM medical_record_attachment 
         WHERE attachment_id = ? AND record_id = ?
     ");
@@ -74,7 +74,7 @@ try {
     }
 
     // Create history record
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         INSERT INTO medical_record_history (
             record_id, action, notes, 
             performed_by, performed_at
@@ -91,11 +91,11 @@ try {
         throw new Exception("Gagal mencatat history");
     }
 
-    $pdo->commit();
+    mysqli_commit($conn);
     $_SESSION['success'] = "Lampiran berhasil dihapus";
 
 } catch (Exception $e) {
-    $pdo->rollBack();
+    mysqli_rollback($conn);
     $_SESSION['error'] = "Terjadi kesalahan: " . $e->getMessage();
 }
 

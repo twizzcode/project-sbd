@@ -11,9 +11,9 @@ $errors = [];
 $owner_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Get owner data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ? AND role = 'Owner'");
-$stmt->execute([$owner_id]);
-$owner = $stmt->fetch();
+$result = mysqli_query($conn, "SELECT * FROM users WHERE user_id = ? AND role = 'Owner'");
+
+$owner = mysqli_fetch_assoc($result);
 
 if (!$owner) {
     $_SESSION['error'] = 'Data pemilik tidak ditemukan';
@@ -28,11 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // Get and sanitize input
-    $nama_lengkap = clean_input($_POST['nama_lengkap']);
-    $alamat = clean_input($_POST['alamat']);
-    $no_telepon = clean_input($_POST['no_telepon']);
-    $email = clean_input($_POST['email']);
-    $catatan = clean_input($_POST['catatan']);
+    $nama_lengkap = $_POST['nama_lengkap'];
+    $alamat = $_POST['alamat'];
+    $no_telepon = $_POST['no_telepon'];
+    $email = $_POST['email'];
+    $catatan = $_POST['catatan'];
 
     // Validate required fields
     if (empty($nama_lengkap)) {
@@ -51,41 +51,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Check if email already exists (except for current owner)
     if (!empty($email)) {
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
-        $stmt->execute([$email, $owner_id]);
-        if ($stmt->rowCount() > 0) {
+        $result = mysqli_query($conn, "SELECT user_id FROM users WHERE email = '$email' AND user_id != '$owner_id'");
+        if (mysqli_num_rows($result) > 0) {
             $errors[] = 'Email sudah terdaftar';
         }
     }
 
     // If no errors, update database
     if (empty($errors)) {
-        try {
-            $stmt = $pdo->prepare("
-                UPDATE users 
-                SET nama_lengkap = ?, 
-                    alamat = ?, 
-                    no_telepon = ?, 
-                    email = ?
-                WHERE user_id = ? AND role = 'Owner'
-            ");
-            
-            $stmt->execute([
-                $nama_lengkap,
-                $alamat,
-                $no_telepon,
-                $email,
-                $owner_id
-            ]);
-            
-            // Set success message and redirect
-            $_SESSION['success'] = 'Data pemilik berhasil diperbarui';
-            header('Location: index.php');
-            exit;
-            
-        } catch (PDOException $e) {
-            $errors[] = 'Terjadi kesalahan: ' . $e->getMessage();
-        }
+        mysqli_query($conn, "UPDATE users SET nama_lengkap = '$nama_lengkap', alamat = '$alamat', 
+            no_telepon = '$no_telepon', email = '$email' WHERE user_id = '$owner_id' AND role = 'Owner'");
+        
+        $_SESSION['success'] = 'Data pemilik berhasil diperbarui';
+        header('Location: index.php');
+        exit;
     }
 }
 

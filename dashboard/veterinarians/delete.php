@@ -15,14 +15,14 @@ $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($id) {
     try {
         // Check if doctor has appointments
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointment WHERE dokter_id = ?");
-        $stmt->execute([$id]);
-        if ($stmt->fetchColumn() > 0) {
+        $result = mysqli_query($conn, "SELECT COUNT(*) FROM appointment WHERE dokter_id = '$id'");
+        
+        if (mysqli_fetch_row($result)[0] > 0) {
             throw new Exception("Tidak dapat menghapus dokter yang memiliki riwayat janji temu. Silakan nonaktifkan status dokter saja.");
         }
 
-        $stmt = $pdo->prepare("DELETE FROM veterinarian WHERE dokter_id = ?");
-        $stmt->execute([$id]);
+        $result = mysqli_query($conn, "DELETE FROM veterinarian WHERE dokter_id = '$id'");
+        
         
         $_SESSION['success'] = "Data dokter berhasil dihapus";
     } catch (Exception $e) {

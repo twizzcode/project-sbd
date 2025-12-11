@@ -18,9 +18,9 @@ $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 // Get search term
-$search = isset($_GET['search']) ? clean_input($_GET['search']) : '';
-$status = isset($_GET['status']) ? clean_input($_GET['status']) : '';
-$jenis = isset($_GET['jenis']) ? clean_input($_GET['jenis']) : '';
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+$status = isset($_GET['status']) ? $_GET['status'] : '';
+$jenis = isset($_GET['jenis']) ? $_GET['jenis'] : '';
 
 // Build query
 $query = "
@@ -32,54 +32,11 @@ $query = "
     FROM pet p
     JOIN users o ON p.owner_id = o.user_id
     LEFT JOIN appointment a ON p.pet_id = a.pet_id
+    GROUP BY p.pet_id
 ";
 
-$conditions = [];
-$params = [];
-
-if ($search) {
-    $conditions[] = "(p.nama_hewan LIKE ? OR o.nama_lengkap LIKE ? OR o.no_telepon LIKE ?)";
-    $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
-}
-
-if ($status) {
-    $conditions[] = "p.status = ?";
-    $params[] = $status;
-}
-
-if ($jenis) {
-    $conditions[] = "p.jenis = ?";
-    $params[] = $jenis;
-}
-
-if (!empty($conditions)) {
-    $query .= " WHERE " . implode(" AND ", $conditions);
-}
-
-$query .= " GROUP BY p.pet_id ORDER BY p.tanggal_registrasi DESC";
-
-// Get total records for pagination
-$count_query = "SELECT COUNT(DISTINCT p.pet_id) as total FROM pet p JOIN users o ON p.owner_id = o.user_id";
-if (!empty($conditions)) {
-    $count_query .= " WHERE " . implode(" AND ", $conditions);
-}
-
-$total_stmt = $pdo->prepare($count_query);
-$total_stmt->execute($params);
-$total_records = $total_stmt->fetch()['total'];
-$total_pages = ceil($total_records / $per_page);
-
-// Get pets with limit
-$query .= " LIMIT ? OFFSET ?";
-$params[] = $per_page;
-$params[] = $offset;
-
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$pets = $stmt->fetchAll();
-
-// Get distinct jenis for filter
-$jenis_list = $pdo->query("SELECT DISTINCT jenis FROM pet ORDER BY jenis")->fetchAll(PDO::FETCH_COLUMN);
+$result = mysqli_query($conn, $query);
+$pets = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -91,44 +48,6 @@ include '../../includes/header.php';
     <a href="create.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
         <i class="fas fa-plus mr-2"></i> Tambah Hewan
     </a>
-</div>
-
-<!-- Filters -->
-<div class="bg-white rounded-lg shadow-md p-4 mb-6">
-    <form action="" method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>"
-                   class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   placeholder="Cari nama hewan/pemilik...">
-        </div>
-        <div>
-            <select name="status" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Semua Status</option>
-                <option value="Aktif" <?php echo $status === 'Aktif' ? 'selected' : ''; ?>>Aktif</option>
-                <option value="Meninggal" <?php echo $status === 'Meninggal' ? 'selected' : ''; ?>>Meninggal</option>
-            </select>
-        </div>
-        <div>
-            <select name="jenis" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Semua Jenis</option>
-                <?php foreach ($jenis_list as $j): ?>
-                    <option value="<?php echo $j; ?>" <?php echo $jenis === $j ? 'selected' : ''; ?>>
-                        <?php echo $j; ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="flex gap-2">
-            <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-                <i class="fas fa-search mr-2"></i> Cari
-            </button>
-            <?php if ($search || $status || $jenis): ?>
-                <a href="?" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-times"></i>
-                </a>
-            <?php endif; ?>
-        </div>
-    </form>
 </div>
 
 <!-- Pets Grid -->
@@ -209,23 +128,15 @@ include '../../includes/header.php';
     <?php endif; ?>
 </div>
 
-<!-- Pagination -->
-<?php if ($total_pages > 1): ?>
-<div class="mt-6 bg-white rounded-lg shadow-md px-4 py-3 flex items-center justify-between">
-    <div class="flex-1 flex justify-between sm:hidden">
-        <?php if ($page > 1): ?>
-            <a href="?page=<?php echo $page - 1; ?><?php echo $search ? "&search=$search" : ''; ?><?php echo $status ? "&status=$status" : ''; ?><?php echo $jenis ? "&jenis=$jenis" : ''; ?>" 
-               class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Previous
-            </a>
-        <?php endif; ?>
-        
-        <?php if ($page < $total_pages): ?>
-            <a href="?page=<?php echo $page + 1; ?><?php echo $search ? "&search=$search" : ''; ?><?php echo $status ? "&status=$status" : ''; ?><?php echo $jenis ? "&jenis=$jenis" : ''; ?>" 
-               class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Next
-            </a>
-        <?php endif; ?>
+<script>
+function confirmDelete(id, name) {
+    if (confirm(`Apakah Anda yakin ingin menghapus data hewan "${name}"?`)) {
+        window.location.href = `delete.php?id=${id}`;
+    }
+}
+</script>
+
+<?php include '../../includes/footer.php'; ?>
     </div>
     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
@@ -280,24 +191,13 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
-<?php endif; ?>
+
 
 <script>
 function confirmDelete(id, name) {
-    Swal.fire({
-        title: 'Konfirmasi Hapus',
-        text: `Apakah Anda yakin ingin menghapus data hewan "${name}"?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Ya, Hapus!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `delete.php?id=${id}`;
-        }
-    });
+    if (confirm(`Apakah Anda yakin ingin menghapus data hewan "${name}"?`)) {
+        window.location.href = `delete.php?id=${id}`;
+    }
 }
 </script>
 

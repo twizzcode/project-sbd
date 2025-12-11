@@ -14,9 +14,9 @@ if (!$id) {
 }
 
 // Get doctor data
-$stmt = $pdo->prepare("SELECT * FROM veterinarian WHERE dokter_id = ?");
-$stmt->execute([$id]);
-$doctor = $stmt->fetch();
+$result = mysqli_query($conn, "SELECT * FROM veterinarian WHERE dokter_id = '$id'");
+
+$doctor = mysqli_fetch_assoc($result);
 
 if (!$doctor) {
     $_SESSION['error'] = "Data dokter tidak ditemukan";
@@ -31,28 +31,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Invalid security token');
         }
 
-        $nama_dokter = clean_input($_POST['nama_dokter']);
-        $no_lisensi = clean_input($_POST['no_lisensi']);
-        $spesialisasi = clean_input($_POST['spesialisasi']);
-        $no_telepon = clean_input($_POST['no_telepon']);
-        $email = clean_input($_POST['email']);
-        $status = clean_input($_POST['status']);
+        $nama_dokter = $_POST['nama_dokter'];
+        $no_lisensi = $_POST['no_lisensi'];
+        $spesialisasi = $_POST['spesialisasi'];
+        $no_telepon = $_POST['no_telepon'];
+        $email = $_POST['email'];
+        $status = $_POST['status'];
 
-        // Handle file upload - REMOVED
-        $foto_url = $doctor['foto_url'];
-
-        $stmt = $pdo->prepare("
+        $result = mysqli_query($conn, "
             UPDATE veterinarian SET 
-                nama_dokter = ?, no_lisensi = ?, spesialisasi = ?, 
-                no_telepon = ?, email = ?, 
-                status = ?, foto_url = ?
-            WHERE dokter_id = ?
+                nama_dokter = '$nama_dokter', no_lisensi = '$no_lisensi', spesialisasi = '$spesialisasi', 
+                no_telepon = '$no_telepon', email = '$email', 
+                status = '$status'
+            WHERE dokter_id = '$id'
         ");
-
-        $stmt->execute([
-            $nama_dokter, $no_lisensi, $spesialisasi, $no_telepon,
-            $email, $status, $foto_url, $id
-        ]);
 
         $_SESSION['success'] = "Data dokter berhasil diperbarui";
         header("Location: index.php");

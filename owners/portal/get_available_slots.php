@@ -19,7 +19,7 @@ if (!$tanggal || !$hari) {
 
 // Get doctors with their schedules for this day
 try {
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         v.dokter_id,
         v.nama_dokter,
@@ -31,21 +31,21 @@ $stmt = $pdo->prepare("
     INNER JOIN doctor_schedule ds ON v.dokter_id = ds.dokter_id
     WHERE v.status = 'Aktif' 
     AND ds.status = 'Aktif'
-    AND ds.hari = ?
+    AND ds.hari = '$hari'
     ORDER BY v.nama_dokter, ds.jam_mulai
 ");
-$stmt->execute([$hari]);
-$schedules = $stmt->fetchAll();
+
+$schedules = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get existing appointments for this date
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT dokter_id, jam_appointment
     FROM appointment
-    WHERE tanggal_appointment = ?
+    WHERE tanggal_appointment = '$tanggal'
     AND status NOT IN ('Cancelled', 'No_Show')
 ");
-$stmt->execute([$tanggal]);
-$booked = $stmt->fetchAll();
+
+$booked = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Create a map of booked slots
 $bookedSlots = [];

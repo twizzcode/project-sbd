@@ -24,9 +24,9 @@ if (!$owner_id) {
 }
 
 // Get owner data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ? AND role = 'Owner'");
-$stmt->execute([$owner_id]);
-$owner = $stmt->fetch();
+$result = mysqli_query($conn, "SELECT * FROM users WHERE user_id = '$owner_id' AND role = 'Owner'");
+
+$owner = mysqli_fetch_assoc($result);
 
 if (!$owner) {
     $_SESSION['error'] = "Pemilik tidak ditemukan";
@@ -36,11 +36,11 @@ if (!$owner) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = clean_input($_POST['email'] ?? '');
-    $nama_lengkap = clean_input($_POST['nama_lengkap'] ?? '');
-    $no_telepon = clean_input($_POST['no_telepon'] ?? '');
-    $alamat = clean_input($_POST['alamat'] ?? '');
-    $status = clean_input($_POST['status'] ?? 'Aktif');
+    $email = $_POST['email'] ?? '';
+    $nama_lengkap = $_POST['nama_lengkap'] ?? '';
+    $no_telepon = $_POST['no_telepon'] ?? '';
+    $alamat = $_POST['alamat'] ?? '';
+    $status = $_POST['status'] ?? 'Aktif';
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
     
@@ -57,9 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Check if email already used by other user
     if (empty($errors)) {
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
-        $stmt->execute([$email, $owner_id]);
-        if ($stmt->fetch()) {
+        $email_check = mysqli_real_escape_string($conn, $email);
+        $result = mysqli_query($conn, "SELECT user_id FROM users WHERE email = '$email_check' AND user_id != '$owner_id'");
+        
+        if (mysqli_fetch_assoc($result)) {
             $errors[] = "Email sudah digunakan oleh pengguna lain";
         }
     }
@@ -79,28 +80,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             if (!empty($password)) {
                 // Update with new password
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("
+                $result = mysqli_query($conn, "
                     UPDATE users 
-                    SET email = ?, nama_lengkap = ?, no_telepon = ?, alamat = ?, status = ?, password = ?
-                    WHERE user_id = ?
+                    SET email = '$email', nama_lengkap = '$nama_lengkap', no_telepon = '$no_telepon', alamat = '$alamat', status = '$status', password = '$password'
+                    WHERE user_id = '$owner_id'
                 ");
-                $stmt->execute([$email, $nama_lengkap, $no_telepon, $alamat, $status, $hashed_password, $owner_id]);
+                
             } else {
                 // Update without changing password
-                $stmt = $pdo->prepare("
+                $result = mysqli_query($conn, "
                     UPDATE users 
-                    SET email = ?, nama_lengkap = ?, no_telepon = ?, alamat = ?, status = ?
-                    WHERE user_id = ?
+                    SET email = '$email', nama_lengkap = '$nama_lengkap', no_telepon = '$no_telepon', alamat = '$alamat', status = '$status'
+                    WHERE user_id = '$owner_id'
                 ");
-                $stmt->execute([$email, $nama_lengkap, $no_telepon, $alamat, $status, $owner_id]);
+                
             }
             
             $_SESSION['success'] = "Data pemilik berhasil diperbarui";
             header("Location: index.php");
             exit;
-            
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $errors[] = "Gagal memperbarui data: " . $e->getMessage();
         }
     }

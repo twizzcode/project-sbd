@@ -8,7 +8,7 @@ require_once '../../includes/functions.php';
 $owner_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Get owner data with related information
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT o.*, 
            COUNT(DISTINCT p.pet_id) as total_pets,
            COUNT(DISTINCT a.appointment_id) as total_appointments
@@ -18,8 +18,8 @@ $stmt = $pdo->prepare("
     WHERE o.user_id = ? AND o.role = 'Owner'
     GROUP BY o.user_id
 ");
-$stmt->execute([$owner_id]);
-$owner = $stmt->fetch();
+
+$owner = mysqli_fetch_assoc($result);
 
 if (!$owner) {
     $_SESSION['error'] = 'Data pemilik tidak ditemukan';
@@ -28,7 +28,7 @@ if (!$owner) {
 }
 
 // Get owner's pets
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT p.*, 
            COUNT(DISTINCT a.appointment_id) as total_visits
     FROM pet p
@@ -37,11 +37,11 @@ $stmt = $pdo->prepare("
     GROUP BY p.pet_id
     ORDER BY p.tanggal_registrasi DESC
 ");
-$stmt->execute([$owner_id]);
-$pets = $stmt->fetchAll();
+
+$pets = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get recent appointments
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT a.*,
            p.nama_hewan,
            v.nama_dokter
@@ -53,8 +53,8 @@ $stmt = $pdo->prepare("
     ORDER BY a.tanggal_appointment DESC
     LIMIT 5
 ");
-$stmt->execute([$owner_id]);
-$recent_appointments = $stmt->fetchAll();
+
+$recent_appointments = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 $page_title = 'Detail Pemilik: ' . $owner['nama_lengkap'];
 

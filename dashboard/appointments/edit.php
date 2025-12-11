@@ -24,7 +24,7 @@ if (!$appointment_id) {
 }
 
 // Get appointment data
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         a.*,
         p.nama_hewan,
@@ -32,16 +32,15 @@ $stmt = $pdo->prepare("
         o.nama_lengkap as owner_name,
         o.no_telepon as owner_phone,
         v.nama_dokter as dokter_name,
-        v.spesialisasi as dokter_spesialisasi,
-        a.jenis_layanan
+        v.spesialisasi as dokter_spesialisasi
     FROM appointment a
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN users o ON a.owner_id = o.user_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    WHERE a.appointment_id = ?
+    WHERE a.appointment_id = '$appointment_id'
 ");
-$stmt->execute([$appointment_id]);
-$appointment = $stmt->fetch();
+
+$appointment = mysqli_fetch_assoc($result);
 
 if (!$appointment) {
     $_SESSION['error'] = "Data janji temu tidak ditemukan";
@@ -50,17 +49,17 @@ if (!$appointment) {
 }
 
 // Get active doctors
-$stmt = $pdo->prepare("
-    SELECT dokter_id, nama_dokter, spesialisasi, jadwal_praktek
+$result = mysqli_query($conn, "
+    SELECT dokter_id, nama_dokter, spesialisasi
     FROM veterinarian 
     WHERE status = 'Active'
     ORDER BY nama_dokter
 ");
-$stmt->execute();
-$doctors = $stmt->fetchAll();
+
+$doctors = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get pets with their owners
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         p.pet_id,
         p.nama_hewan,
@@ -73,8 +72,8 @@ $stmt = $pdo->prepare("
     WHERE p.status = 'Aktif'
     ORDER BY o.nama_lengkap, p.nama_hewan
 ");
-$stmt->execute();
-$pets = $stmt->fetchAll();
+
+$pets = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -85,73 +84,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Start transaction
-        $pdo->beginTransaction();
+        mysqli_begin_transaction($conn);
 
         // Validate and sanitize input
         $pet_id = filter_var($_POST['pet_id'], FILTER_VALIDATE_INT);
         $dokter_id = filter_var($_POST['dokter_id'], FILTER_VALIDATE_INT);
-        $jenis_layanan = clean_input($_POST['jenis_layanan'] ?? 'Konsultasi Umum');
-        $tanggal_appointment = clean_input($_POST['tanggal_appointment']);
-        $jam_appointment = clean_input($_POST['jam_appointment']);
-        $keluhan_awal = clean_input($_POST['keluhan_awal']);
-        $catatan = clean_input($_POST['catatan'] ?? '');
-        $status = clean_input($_POST['status']);
+        $tanggal_appointment = $_POST['tanggal_appointment'];
+        $keluhan_awal = $_POST['keluhan_awal'] ?? '';
+        $catatan = $_POST['catatan'] ?? '';
 
         // Validate required fields
-        if (!$pet_id || !$dokter_id || !$tanggal_appointment || !$jam_appointment || !$status) {
-            throw new Exception('Semua field wajib diisi');
-        }
-
-        // Validate date and time
-        if (!validate_appointment_datetime($tanggal_appointment, $jam_appointment)) {
-            throw new Exception('Tanggal dan jam tidak valid');
-        }
-
-        // Check doctor availability (excluding current appointment)
-        if (!is_doctor_available($pdo, $dokter_id, $tanggal_appointment, $jam_appointment, null, $appointment_id)) {
-            throw new Exception('Dokter tidak tersedia pada waktu yang dipilih');
+        if (!$pet_id || !$dokter_id || !$tanggal_appointment) {
+            throw new Exception('Pasien, Dokter, dan Tanggal wajib diisi');
         }
 
         // Get owner_id from pet
-        $stmt = $pdo->prepare("SELECT owner_id FROM pet WHERE pet_id = ?");
-        $stmt->execute([$pet_id]);
-        $owner_id = $stmt->fetchColumn();
+        $pet_id_escaped = mysqli_real_escape_string($conn, $pet_id);
+        $result = mysqli_query($conn, "SELECT owner_id FROM pet WHERE pet_id = '$pet_id_escaped'");
+        
+        $owner_id = mysqli_fetch_row($result)[0];
+
+        // Escape strings
+        $dokter_id_escaped = mysqli_real_escape_string($conn, $dokter_id);
+        $tanggal_escaped = mysqli_real_escape_string($conn, $tanggal_appointment);
+        $keluhan_escaped = mysqli_real_escape_string($conn, $keluhan_awal);
+        $catatan_escaped = mysqli_real_escape_string($conn, $catatan);
+        $owner_id_escaped = mysqli_real_escape_string($conn, $owner_id);
 
         // Update appointment
-        $stmt = $pdo->prepare("
+        $result = mysqli_query($conn, "
             UPDATE appointment SET
-                pet_id = ?,
-                owner_id = ?,
-                dokter_id = ?,
-                jenis_layanan = ?,
-                tanggal_appointment = ?,
-                jam_appointment = ?,
-                keluhan_awal = ?,
-                catatan = ?,
-                status = ?
-            WHERE appointment_id = ?
+                pet_id = '$pet_id_escaped',
+                owner_id = '$owner_id_escaped',
+                dokter_id = '$dokter_id_escaped',
+                tanggal_appointment = '$tanggal_escaped',
+                keluhan_awal = '$keluhan_escaped',
+                catatan = '$catatan_escaped'
+            WHERE appointment_id = '$appointment_id'
         ");
-
-        $stmt->execute([
-            $pet_id,
-            $owner_id,
-            $dokter_id,
-            $jenis_layanan,
-            $tanggal_appointment,
-            $jam_appointment,
-            $keluhan_awal,
-            $catatan,
-            $status,
-            $appointment_id
-        ]);
-
-        // Create notification for status change if status changed
-        if ($status !== $appointment['status']) {
-            create_notification($pdo, $owner_id, 'appointment_status_changed', $appointment_id);
+        
+        if (!$result) {
+            throw new Exception(mysqli_error($conn));
         }
 
         // Commit transaction
-        $pdo->commit();
+        mysqli_commit($conn);
 
         // Set success message and redirect
         $_SESSION['success'] = 'Janji temu berhasil diperbarui';
@@ -160,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (Exception $e) {
         // Rollback transaction on error
-        $pdo->rollBack();
+        mysqli_rollback($conn);
         $_SESSION['error'] = $e->getMessage();
     }
 }
@@ -181,13 +158,13 @@ include '../../includes/header.php';
             <!-- CSRF Token -->
             <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
 
-            <!-- Current Status -->
+            <!-- Current Info -->
             <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Status Saat Ini</h3>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Informasi Saat Ini</h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                        <p class="text-sm text-gray-500">Status</p>
-                        <p class="font-medium"><?php echo get_appointment_status_badge($appointment['status']); ?></p>
+                        <p class="text-sm text-gray-500">Tanggal Dibuat</p>
+                        <p class="font-medium"><?php echo date('d/m/Y', strtotime($appointment['created_at'])); ?></p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Dibuat pada</p>
@@ -224,91 +201,40 @@ include '../../includes/header.php';
                 <p class="mt-2 text-sm text-gray-500" id="ownerInfo"></p>
             </div>
 
-            <!-- Service Type -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2" for="jenis_layanan">
-                    Jenis Layanan <span class="text-red-500">*</span>
-                </label>
-                <select name="jenis_layanan" id="jenis_layanan" required
-                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Pilih Jenis Layanan</option>
-                    <option value="Konsultasi Umum" <?php echo $appointment['jenis_layanan'] === 'Konsultasi Umum' ? 'selected' : ''; ?>>Konsultasi Umum</option>
-                    <option value="Vaksinasi" <?php echo $appointment['jenis_layanan'] === 'Vaksinasi' ? 'selected' : ''; ?>>Vaksinasi</option>
-                    <option value="Grooming" <?php echo $appointment['jenis_layanan'] === 'Grooming' ? 'selected' : ''; ?>>Grooming</option>
-                    <option value="Operasi" <?php echo $appointment['jenis_layanan'] === 'Operasi' ? 'selected' : ''; ?>>Operasi</option>
-                    <option value="Perawatan Gigi" <?php echo $appointment['jenis_layanan'] === 'Perawatan Gigi' ? 'selected' : ''; ?>>Perawatan Gigi</option>
-                    <option value="Pemeriksaan Rutin" <?php echo $appointment['jenis_layanan'] === 'Pemeriksaan Rutin' ? 'selected' : ''; ?>>Pemeriksaan Rutin</option>
-                    <option value="Emergency" <?php echo $appointment['jenis_layanan'] === 'Emergency' ? 'selected' : ''; ?>>Emergency</option>
-                    <option value="Lainnya" <?php echo $appointment['jenis_layanan'] === 'Lainnya' ? 'selected' : ''; ?>>Lainnya</option>
-                </select>
-            </div>
-
-            <!-- Doctor Selection -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2" for="dokter_id">
-                    Dokter <span class="text-red-500">*</span>
-                </label>
-                <select name="dokter_id" id="dokter_id" required
-                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Pilih Dokter</option>
-                    <?php foreach ($doctors as $doctor): ?>
-                        <option value="<?php echo $doctor['dokter_id']; ?>"
-                                data-schedule="<?php echo htmlspecialchars($doctor['jadwal_praktek'] ?? ''); ?>"
-                                <?php echo $doctor['dokter_id'] == $appointment['dokter_id'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($doctor['nama_dokter']); ?> 
-                            <?php if ($doctor['spesialisasi']): ?>
-                                - <?php echo htmlspecialchars($doctor['spesialisasi']); ?>
+            <!-- Doctor and Date Info (Read-only) -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="text-lg font-semibold text-blue-800 mb-3">Informasi Janji Temu</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-blue-600">Dokter</p>
+                        <p class="font-medium">
+                            Dr. <?php echo htmlspecialchars($appointment['dokter_name']); ?>
+                            <?php if ($appointment['dokter_spesialisasi']): ?>
+                                <br><span class="text-sm text-gray-600">(<?php echo htmlspecialchars($appointment['dokter_spesialisasi']); ?>)</span>
                             <?php endif; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <p class="mt-2 text-sm text-gray-500" id="doctorSchedule"></p>
-            </div>
-
-            <!-- Date and Time -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2" for="tanggal_appointment">
-                        Tanggal <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" name="tanggal_appointment" id="tanggal_appointment" required
-                           value="<?php echo $appointment['tanggal_appointment']; ?>"
-                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2" for="jam_appointment">
-                        Jam <span class="text-red-500">*</span>
-                    </label>
-                    <input type="time" name="jam_appointment" id="jam_appointment" required
-                           value="<?php echo date('H:i', strtotime($appointment['jam_appointment'])); ?>"
-                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-blue-600">Tanggal</p>
+                        <p class="font-medium">
+                            <?php echo date('l, d F Y', strtotime($appointment['tanggal_appointment'])); ?>
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Status -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2" for="status">
-                    Status <span class="text-red-500">*</span>
-                </label>
-                <select name="status" id="status" required
-                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="Pending" <?php echo $appointment['status'] === 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                    <option value="Confirmed" <?php echo $appointment['status'] === 'Confirmed' ? 'selected' : ''; ?>>Confirmed</option>
-                    <option value="Completed" <?php echo $appointment['status'] === 'Completed' ? 'selected' : ''; ?>>Completed</option>
-                    <option value="Cancelled" <?php echo $appointment['status'] === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                    <option value="No_Show" <?php echo $appointment['status'] === 'No_Show' ? 'selected' : ''; ?>>No Show</option>
-                </select>
-            </div>
+            <!-- Hidden inputs for dokter and tanggal -->
+            <input type="hidden" name="dokter_id" value="<?php echo $appointment['dokter_id']; ?>">
+            <input type="hidden" name="tanggal_appointment" value="<?php echo $appointment['tanggal_appointment']; ?>">
 
             <!-- Complaint -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2" for="keluhan_awal">
-                    Keluhan <span class="text-red-500">*</span>
+                    Keluhan
                 </label>
-                <textarea name="keluhan_awal" id="keluhan_awal" rows="3" required
+                <textarea name="keluhan_awal" id="keluhan_awal" rows="3"
                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Deskripsikan keluhan atau alasan kunjungan..."><?php echo htmlspecialchars($appointment['keluhan_awal']); ?></textarea>
+                          placeholder="Deskripsikan keluhan atau alasan kunjungan..."><?php echo htmlspecialchars($appointment['keluhan_awal'] ?? ''); ?></textarea>
             </div>
 
             <!-- Notes -->
@@ -318,7 +244,7 @@ include '../../includes/header.php';
                 </label>
                 <textarea name="catatan" id="catatan" rows="2"
                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Catatan khusus atau informasi tambahan..."><?php echo htmlspecialchars($appointment['catatan']); ?></textarea>
+                          placeholder="Catatan khusus atau informasi tambahan..."><?php echo htmlspecialchars($appointment['catatan'] ?? ''); ?></textarea>
             </div>
 
             <!-- Submit Buttons -->

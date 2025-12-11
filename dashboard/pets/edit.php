@@ -16,9 +16,9 @@ if (!$pet_id) {
 }
 
 // Get pet data
-$stmt = $pdo->prepare("SELECT * FROM pet WHERE pet_id = ?");
-$stmt->execute([$pet_id]);
-$pet = $stmt->fetch();
+$result = mysqli_query($conn, "SELECT * FROM pet WHERE pet_id = '$pet_id'");
+
+$pet = mysqli_fetch_assoc($result);
 
 if (!$pet) {
     $_SESSION['error'] = "Data hewan tidak ditemukan";
@@ -27,8 +27,8 @@ if (!$pet) {
 }
 
 // Get all owners for the dropdown
-$owners_stmt = $pdo->query("SELECT user_id as owner_id, nama_lengkap, no_telepon FROM users WHERE role = 'Owner' ORDER BY nama_lengkap");
-$owners = $owners_stmt->fetchAll();
+$owners_stmt = mysqli_query($conn, "SELECT user_id as owner_id, nama_lengkap, no_telepon FROM users WHERE role = 'Owner' ORDER BY nama_lengkap");
+$owners = mysqli_fetch_all($owners_stmt, MYSQLI_ASSOC);
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -37,53 +37,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log("POST data received: " . print_r($_POST, true));
         
         // Start transaction
-        $pdo->beginTransaction();
+        mysqli_begin_transaction($conn);
 
-        $owner_id = clean_input($_POST['owner_id']);
-        $nama_hewan = clean_input($_POST['nama_hewan']);
-        $jenis = clean_input($_POST['jenis']);
-        $ras = clean_input($_POST['ras'] ?? '');
-        $jenis_kelamin = clean_input($_POST['jenis_kelamin']);
-        $tanggal_lahir = !empty($_POST['tanggal_lahir']) ? clean_input($_POST['tanggal_lahir']) : null;
-        $berat_badan = !empty($_POST['berat_badan']) ? clean_input($_POST['berat_badan']) : null;
-        $warna = clean_input($_POST['warna'] ?? '');
-        $ciri_khusus = clean_input($_POST['ciri_khusus'] ?? '');
-        $status = clean_input($_POST['status']);
+        $owner_id = $_POST['owner_id'];
+        $nama_hewan = $_POST['nama_hewan'];
+        $jenis = $_POST['jenis'];
+        $ras = $_POST['ras'] ?? '';
+        $jenis_kelamin = $_POST['jenis_kelamin'];
+        $tanggal_lahir = !empty($_POST['tanggal_lahir']) ? $_POST['tanggal_lahir'] : null;
+        $berat_badan = !empty($_POST['berat_badan']) ? $_POST['berat_badan'] : null;
+        $warna = $_POST['warna'] ?? '';
+        $ciri_khusus = $_POST['ciri_khusus'] ?? '';
+        $status = $_POST['status'];
         
         error_log("Processing update for pet_id: $pet_id with jenis: $jenis, jenis_kelamin: $jenis_kelamin");
 
         // Update pet data
-        $stmt = $pdo->prepare("
+        $result = mysqli_query($conn, "
             UPDATE pet SET 
-                owner_id = ?,
-                nama_hewan = ?,
-                jenis = ?,
-                ras = ?,
-                jenis_kelamin = ?,
-                tanggal_lahir = ?,
-                berat_badan = ?,
-                warna = ?,
-                ciri_khusus = ?,
-                status = ?
-            WHERE pet_id = ?
+                owner_id = '$owner_id',
+                nama_hewan = '$nama_hewan',
+                jenis = '$jenis',
+                ras = '$ras',
+                jenis_kelamin = '$jenis_kelamin',
+                tanggal_lahir = " . ($tanggal_lahir ? "'$tanggal_lahir'" : "NULL") . ",
+                berat_badan = " . ($berat_badan ? "'$berat_badan'" : "NULL") . ",
+                warna = '$warna',
+                ciri_khusus = '$ciri_khusus',
+                status = '$status'
+            WHERE pet_id = '$pet_id'
         ");
 
-        $stmt->execute([
-            $owner_id,
-            $nama_hewan,
-            $jenis,
-            $ras,
-            $jenis_kelamin,
-            $tanggal_lahir,
-            $berat_badan,
-            $warna,
-            $ciri_khusus,
-            $status,
-            $pet_id
-        ]);
-
         // Commit transaction
-        $pdo->commit();
+        mysqli_commit($conn);
 
         $_SESSION['success'] = "Data hewan berhasil diperbarui";
         header("Location: index.php");
@@ -91,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (Exception $e) {
         // Rollback transaction on error
-        $pdo->rollBack();
+        mysqli_rollback($conn);
         $_SESSION['error'] = "Error: " . $e->getMessage();
     }
 }

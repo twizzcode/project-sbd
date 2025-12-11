@@ -8,14 +8,14 @@ $error_message = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nama_hewan = trim($_POST['nama_hewan'] ?? '');
+    $nama_hewan = $_POST['nama_hewan'] ?? '';
     $jenis = !empty($_POST['jenis']) ? $_POST['jenis'] : null;
-    $ras = trim($_POST['ras'] ?? '');
+    $ras = $_POST['ras'] ?? '';
     $jenis_kelamin = !empty($_POST['jenis_kelamin']) ? $_POST['jenis_kelamin'] : null;
     $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
     $berat_badan = $_POST['berat_badan'] ?? null;
-    $warna = trim($_POST['warna'] ?? '');
-    $ciri_khusus = trim($_POST['ciri_khusus'] ?? '');
+    $warna = $_POST['warna'] ?? '';
+    $ciri_khusus = $_POST['ciri_khusus'] ?? '';
     
     // Validation
     if (empty($nama_hewan)) {
@@ -25,33 +25,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (empty($jenis_kelamin)) {
         $error_message = 'Jenis kelamin wajib dipilih.';
     } else {
-        try {
-            // Insert pet
-            $stmt = $pdo->prepare("
-                INSERT INTO pet (owner_id, nama_hewan, jenis, ras, jenis_kelamin, tanggal_lahir, berat_badan, warna, ciri_khusus, status, tanggal_registrasi)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Aktif', NOW())
-            ");
-            
-            $stmt->execute([
-                $_SESSION['owner_id'],
-                $nama_hewan,
-                $jenis,
-                $ras ?: null,
-                $jenis_kelamin,
-                $tanggal_lahir ?: null,
-                $berat_badan ?: null,
-                $warna ?: null,
-                $ciri_khusus ?: null
-            ]);
-            
-            $success_message = 'Pet berhasil didaftarkan!';
-            
-            // Clear form
-            $_POST = [];
-            
-        } catch (PDOException $e) {
-            $error_message = 'Terjadi kesalahan saat mendaftarkan pet: ' . $e->getMessage();
-        }
+        // Insert pet
+        $owner_id = $_SESSION['owner_id'];
+        $tanggal_lahir_value = !empty($tanggal_lahir) ? "'$tanggal_lahir'" : "NULL";
+        $berat_badan_value = !empty($berat_badan) ? "'$berat_badan'" : "NULL";
+        mysqli_query($conn, "INSERT INTO pet (owner_id, nama_hewan, jenis, ras, jenis_kelamin, tanggal_lahir, berat_badan, warna, ciri_khusus, status)
+            VALUES ('$owner_id', '$nama_hewan', '$jenis', '$ras', '$jenis_kelamin', $tanggal_lahir_value, $berat_badan_value, '$warna', '$ciri_khusus', 'Aktif')");
+        
+        $success_message = 'Pet berhasil didaftarkan!';
+        $_POST = [];
     }
 }
 ?>
@@ -228,24 +210,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
-function previewImage(input) {
-    const preview = document.getElementById('preview');
-    
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            preview.innerHTML = `
-                <div class="inline-block">
-                    <img src="${e.target.result}" class="w-32 h-32 rounded-lg object-cover shadow-lg">
-                    <p class="text-sm text-gray-600 mt-2">${input.files[0].name}</p>
-                </div>
-            `;
-        };
-        
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-</script>
 
 <?php require_once __DIR__ . '/../includes/owner_footer.php'; ?>

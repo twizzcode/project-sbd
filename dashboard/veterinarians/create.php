@@ -20,28 +20,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Invalid security token');
         }
 
-        $nama_dokter = clean_input($_POST['nama_dokter']);
-        $no_lisensi = clean_input($_POST['no_lisensi']);
-        $spesialisasi = clean_input($_POST['spesialisasi']);
-        $no_telepon = clean_input($_POST['no_telepon']);
-        $email = clean_input($_POST['email']);
-        $tanggal_bergabung = clean_input($_POST['tanggal_bergabung']);
-        $status = clean_input($_POST['status']);
+        $nama_dokter = $_POST['nama_dokter'];
+        $no_lisensi = $_POST['no_lisensi'] ?? null;
+        $spesialisasi = $_POST['spesialisasi'];
+        $no_telepon = $_POST['no_telepon'] ?? null;
+        $email = $_POST['email'] ?? null;
+        $tanggal_bergabung = $_POST['tanggal_bergabung'];
+        $status = $_POST['status'] ?? 'Aktif';
 
-        // Handle file upload - REMOVED
-        $foto_url = null;
-
-        $stmt = $pdo->prepare("
+        $result = mysqli_query($conn, "
             INSERT INTO veterinarian (
                 nama_dokter, no_lisensi, spesialisasi, no_telepon, 
-                email, tanggal_bergabung, status, foto_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                email, tanggal_bergabung, status
+            ) VALUES ('$nama_dokter', '$no_lisensi', '$spesialisasi', '$no_telepon', '$email', '$tanggal_bergabung', '$status')
         ");
-
-        $stmt->execute([
-            $nama_dokter, $no_lisensi, $spesialisasi, $no_telepon,
-            $email, $tanggal_bergabung, $status, $foto_url
-        ]);
 
         $_SESSION['success'] = "Dokter berhasil ditambahkan";
         header("Location: index.php");

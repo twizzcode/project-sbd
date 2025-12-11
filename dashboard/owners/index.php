@@ -14,13 +14,13 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-i
 $page_title = 'Daftar Pemilik Hewan';
 
 // Initialize variables
-$page = isset($_GET['page']) ? (int)clean_input($_GET['page']) : 1;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 // Get filters
-$search = isset($_GET['search']) ? clean_input($_GET['search']) : '';
-$status = isset($_GET['status']) ? clean_input($_GET['status']) : '';
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+$status = isset($_GET['status']) ? $_GET['status'] : '';
 
 // Build query
 $query = "
@@ -39,42 +39,13 @@ $query = "
     LEFT JOIN pet p ON u.user_id = p.owner_id
     LEFT JOIN appointment a ON u.user_id = a.owner_id
     WHERE u.role = 'Owner'
+    GROUP BY u.user_id
+    ORDER BY u.created_at DESC
 ";
 
-$params = [];
-
-if ($search) {
-    $query .= " AND (u.nama_lengkap LIKE ? OR u.email LIKE ? OR u.no_telepon LIKE ? OR u.username LIKE ?)";
-    $search_param = "%$search%";
-    $params = array_merge($params, [$search_param, $search_param, $search_param, $search_param]);
-}
-
-if ($status) {
-    $query .= " AND u.status = ?";
-    $params[] = $status;
-}
-
-$query .= " GROUP BY u.user_id";
-
-// Get total records
-$count_query = "SELECT COUNT(DISTINCT u.user_id) FROM users u WHERE u.role = 'Owner'";
-if ($search || $status) {
-    $count_query = "SELECT COUNT(*) FROM (" . $query . ") as temp";
-}
-$stmt = $pdo->prepare($count_query);
-$stmt->execute($params);
-$total_records = $stmt->fetchColumn();
-$total_pages = ceil($total_records / $per_page);
-
-// Add sorting and limit
-$query .= " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
-$params[] = $per_page;
-$params[] = $offset;
-
 // Execute query
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$owners = $stmt->fetchAll();
+$result = mysqli_query($conn, $query);
+$owners = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -86,39 +57,6 @@ include '../../includes/header.php';
         <a href="create.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
             <i class="fas fa-plus mr-2"></i> Tambah Pemilik
         </a>
-    </div>
-
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <form action="" method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- Search -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Pencarian</label>
-                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>"
-                       class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       placeholder="Nama/Email/Telepon...">
-            </div>
-
-            <!-- Status -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select name="status" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Semua Status</option>
-                    <option value="Aktif" <?php echo $status === 'Aktif' ? 'selected' : ''; ?>>Aktif</option>
-                    <option value="Nonaktif" <?php echo $status === 'Nonaktif' ? 'selected' : ''; ?>>Nonaktif</option>
-                </select>
-            </div>
-
-            <!-- Submit -->
-            <div class="flex items-end gap-2">
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
-                    <i class="fas fa-search mr-2"></i> Filter
-                </button>
-                <a href="index.php" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
-                    <i class="fas fa-redo mr-2"></i> Reset
-                </a>
-            </div>
-        </form>
     </div>
 
     <!-- Success/Error Messages -->
@@ -230,49 +168,6 @@ include '../../includes/header.php';
                 </tbody>
             </table>
         </div>
-
-        <!-- Pagination -->
-        <?php if ($total_pages > 1): ?>
-            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                <div class="flex-1 flex justify-between sm:hidden">
-                    <?php if ($page > 1): ?>
-                        <a href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>" 
-                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            Previous
-                        </a>
-                    <?php endif; ?>
-                    <?php if ($page < $total_pages): ?>
-                        <a href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>" 
-                           class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            Next
-                        </a>
-                    <?php endif; ?>
-                </div>
-                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-gray-700">
-                            Menampilkan
-                            <span class="font-medium"><?php echo $offset + 1; ?></span>
-                            sampai
-                            <span class="font-medium"><?php echo min($offset + $per_page, $total_records); ?></span>
-                            dari
-                            <span class="font-medium"><?php echo $total_records; ?></span>
-                            hasil
-                        </p>
-                    </div>
-                    <div>
-                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                                <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>" 
-                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium <?php echo $i === $page ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'; ?>">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 

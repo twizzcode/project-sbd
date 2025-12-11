@@ -34,90 +34,30 @@ function validate_appointment_datetime($date, $time) {
 
 /**
  * Check if doctor is available at the given time
- * 
- * @param PDO $pdo Database connection
- * @param int $dokter_id Doctor ID
- * @param string $date Date in Y-m-d format
- * @param string $start_time Start time in H:i format
- * @param string $end_time End time in H:i format
- * @param int|null $exclude_appointment_id Appointment ID to exclude from check (for updates)
- * @return bool
  */
-function is_doctor_available($pdo, $dokter_id, $date, $start_time, $end_time, $exclude_appointment_id = null) {
-    try {
-        // Check doctor's schedule first
-        $stmt = $pdo->prepare("
-            SELECT jadwal_praktek
-            FROM veterinarian
-            WHERE dokter_id = ? AND status = 'Aktif'
-        ");
-        $stmt->execute([$dokter_id]);
-        $schedule = $stmt->fetchColumn();
-
-        // If no schedule or doctor not active, allow booking (simplified)
-        // In production, you'd want to properly validate against doctor's schedule
-        
-        // Check for overlapping appointments
-        $query = "
-            SELECT COUNT(*)
-            FROM appointment
-            WHERE dokter_id = ?
-            AND tanggal_appointment = ?
-            AND jam_appointment = ?
-            AND status NOT IN ('Cancelled', 'No_Show')
-        ";
-        $params = [
-            $dokter_id,
-            $date,
-            $start_time
-        ];
-
-        // Exclude current appointment if updating
-        if ($exclude_appointment_id) {
-            $query .= " AND appointment_id != ?";
-            $params[] = $exclude_appointment_id;
-        }
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $overlapping = $stmt->fetchColumn();
-
-        return $overlapping === 0;
-
-    } catch (Exception $e) {
-        error_log("Error checking doctor availability: " . $e->getMessage());
-        return false;
+function is_doctor_available($conn, $dokter_id, $date, $start_time, $exclude_appointment_id = null) {
+    $query = "SELECT COUNT(*) as count FROM appointment
+        WHERE dokter_id = '$dokter_id'
+        AND tanggal_appointment = '$date'
+        AND jam_appointment = '$start_time'
+        AND status NOT IN ('Cancelled', 'No_Show')";
+    
+    if ($exclude_appointment_id) {
+        $query .= " AND appointment_id != '$exclude_appointment_id'";
     }
+    
+    $result = mysqli_query($conn, $query);
+    $row = mysqli_fetch_assoc($result);
+    return $row['count'] == 0;
 }
 
 /**
  * Create a notification for a user
- * 
- * @param PDO $pdo Database connection
- * @param int $user_id User ID
- * @param string $type Notification type
- * @param int $reference_id Reference ID (e.g., appointment_id)
- * @return bool
  */
-function create_notification($pdo, $user_id, $type, $reference_id) {
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO notification (
-                user_id,
-                type,
-                reference_id,
-                created_at,
-                status
-            ) VALUES (
-                ?, ?, ?, CURRENT_TIMESTAMP, 'Unread'
-            )
-        ");
-        
-        return $stmt->execute([$user_id, $type, $reference_id]);
-    } catch (Exception $e) {
-        error_log("Error creating notification: " . $e->getMessage());
-        return false;
-    }
+function create_notification($conn, $user_id, $type, $reference_id) {
+    mysqli_query($conn, "INSERT INTO notifications (user_id, type, reference_id, created_at, status)
+        VALUES ('$user_id', '$type', '$reference_id', NOW(), 'Unread')");
+    return mysqli_affected_rows($conn) > 0;
 }
 
 /**

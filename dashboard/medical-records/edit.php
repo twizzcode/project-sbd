@@ -31,18 +31,11 @@ if (!$record_id) {
 }
 
 // Get record data
-$record = get_medical_record($pdo, $record_id);
+$record = get_medical_record($conn, $record_id);
 
 if (!$record) {
     $_SESSION['error'] = "Data rekam medis tidak ditemukan";
     header("Location: index.php");
-    exit;
-}
-
-// Check if record can be edited
-if ($record['status'] !== 'Active') {
-    $_SESSION['error'] = "Rekam medis yang sudah diarsipkan tidak dapat diedit";
-    header("Location: detail.php?id=" . $record_id);
     exit;
 }
 
@@ -55,8 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'diagnosis' => $_POST['diagnosis'] ?? '',
         'tindakan' => $_POST['tindakan'] ?? '',
         'resep' => $_POST['resep'] ?? '',
-        'catatan' => $_POST['catatan'] ?? '',
-        'status' => $_POST['status'] ?? 'Active'
+        'catatan' => $_POST['catatan'] ?? ''
     ];
 
     // Validate input
@@ -64,51 +56,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         try {
-            $pdo->beginTransaction();
+            mysqli_begin_transaction($conn);
+
+            $pet_id = mysqli_real_escape_string($conn, $data['pet_id']);
+            $dokter_id = mysqli_real_escape_string($conn, $data['dokter_id']);
+            $tanggal = mysqli_real_escape_string($conn, $data['tanggal']);
+            $diagnosis = mysqli_real_escape_string($conn, $data['diagnosis']);
+            $tindakan = mysqli_real_escape_string($conn, $data['tindakan']);
+            $resep = mysqli_real_escape_string($conn, $data['resep']);
+            $catatan = mysqli_real_escape_string($conn, $data['catatan']);
 
             // Update medical record
-            $stmt = $pdo->prepare("
+            $result = mysqli_query($conn, "
                 UPDATE medical_record SET
-                    pet_id = ?,
-                    dokter_id = ?,
-                    tanggal_kunjungan = ?,
-                    diagnosis = ?,
-                    tindakan = ?,
-                    resep = ?,
-                    catatan_dokter = ?
-                WHERE record_id = ?
+                    pet_id = '$pet_id',
+                    dokter_id = '$dokter_id',
+                    tanggal_kunjungan = '$tanggal',
+                    diagnosis = '$diagnosis',
+                    tindakan = '$tindakan',
+                    resep = '$resep',
+                    catatan_dokter = '$catatan'
+                WHERE record_id = '$record_id'
             ");
 
-            $stmt->execute([
-                $data['pet_id'],
-                $data['dokter_id'],
-                $data['tanggal'],
-                $data['diagnosis'],
-                $data['tindakan'],
-                $data['resep'],
-                $data['catatan'],
-                $record_id
-            ]);
-
-            // Create history record if status changed
-            if ($data['status'] !== $record['status']) {
-                create_medical_record_history(
-                    $pdo, 
-                    $record_id, 
-                    'UPDATE', 
-                    $record['status'],
-                    $data['status'],
-                    'Status rekam medis diubah'
-                );
-            }
-
-            $pdo->commit();
+            mysqli_commit($conn);
             $_SESSION['success'] = "Rekam medis berhasil diperbarui";
             header("Location: detail.php?id=" . $record_id);
             exit;
 
         } catch (Exception $e) {
-            $pdo->rollBack();
+            mysqli_rollback($conn);
             $errors[] = "Terjadi kesalahan: " . $e->getMessage();
         }
     }
@@ -118,14 +95,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 // Get doctors for dropdown
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT dokter_id, nama_dokter as nama_lengkap, spesialisasi
     FROM veterinarian
     WHERE status = 'Aktif'
     ORDER BY nama_dokter
 ");
-$stmt->execute();
-$doctors = $stmt->fetchAll();
+
+$doctors = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -160,7 +137,8 @@ include '../../includes/header.php';
         <input type="hidden" name="pet_id" value="<?php echo $record['pet_id']; ?>">
         
         <!-- Patient Info -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">\n            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <p class="text-sm text-blue-600">Pasien</p>
                     <p class="font-medium">
@@ -175,81 +153,27 @@ include '../../includes/header.php';
                         <?php echo htmlspecialchars($record['owner_name']); ?>
                     </p>
                 </div>
-                <?php if ($record['appointment_id']): ?>
-                    <div>
-                        <p class="text-sm text-blue-600">Dari Janji Temu</p>
-                        <p class="font-medium">
-                            <?php echo date('l, d F Y', strtotime($record['appointment_date'])); ?>
-                            <br>
-                            <?php echo date('H:i', strtotime($record['appointment_time'])); ?> WIB
-                        </p>
-                        <p class="text-sm text-blue-600 mt-2">Dokter</p>
-                        <p class="font-medium">
-                            Dr. <?php echo htmlspecialchars($record['dokter_name']); ?>
-                            <?php if ($record['dokter_spesialisasi']): ?>
-                                <br><span class="text-xs text-gray-600"><?php echo htmlspecialchars($record['dokter_spesialisasi']); ?></span>
-                            <?php endif; ?>
-                        </p>
-                    </div>
-                <?php endif; ?>
+                <div>
+                    <p class="text-sm text-blue-600">Dokter</p>
+                    <p class="font-medium">
+                        Dr. <?php echo htmlspecialchars($record['dokter_name']); ?>
+                        <?php if ($record['dokter_spesialisasi']): ?>
+                            <br><span class="text-sm text-gray-600">(<?php echo htmlspecialchars($record['dokter_spesialisasi']); ?>)</span>
+                        <?php endif; ?>
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-blue-600">Tanggal Kunjungan</p>
+                    <p class="font-medium">
+                        <?php echo date('l, d F Y', strtotime($record['tanggal'])); ?>
+                    </p>
+                </div>
             </div>
         </div>
 
-        <?php if (!$record['appointment_id']): ?>
-        <!-- Form untuk rekam medis manual (tanpa appointment) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Doctor Selection -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Dokter <span class="text-red-600">*</span>
-                </label>
-                <select name="dokter_id" required
-                        class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200">
-                    <option value="">Pilih Dokter</option>
-                    <?php foreach ($doctors as $doctor): ?>
-                        <option value="<?php echo $doctor['dokter_id']; ?>"
-                                <?php echo $doctor['dokter_id'] == $record['dokter_id'] ? 'selected' : ''; ?>>
-                            Dr. <?php echo htmlspecialchars($doctor['nama_lengkap']); ?>
-                            <?php if ($doctor['spesialisasi']): ?>
-                                (<?php echo htmlspecialchars($doctor['spesialisasi']); ?>)
-                            <?php endif; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Date -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Tanggal <span class="text-red-600">*</span>
-                </label>
-                <input type="date" name="tanggal" required
-                       value="<?php echo $record['tanggal']; ?>"
-                       class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200">
-            </div>
-        </div>
-        <?php else: ?>
-        <!-- Hidden inputs untuk rekam medis dari appointment -->
+        <!-- Hidden inputs - dokter dan tanggal tidak bisa diubah -->
         <input type="hidden" name="dokter_id" value="<?php echo $record['dokter_id']; ?>">
         <input type="hidden" name="tanggal" value="<?php echo $record['tanggal']; ?>">
-        <?php endif; ?>
-
-            <!-- Status -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Status <span class="text-red-600">*</span>
-                </label>
-                <select name="status" required
-                        class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200">
-                    <option value="Active" <?php echo $record['status'] === 'Active' ? 'selected' : ''; ?>>
-                        Active
-                    </option>
-                    <option value="Archived" <?php echo $record['status'] === 'Archived' ? 'selected' : ''; ?>>
-                        Archived
-                    </option>
-                </select>
-            </div>
-        </div>
 
         <!-- Medical Details -->
         <div class="grid grid-cols-1 gap-6 mt-6">

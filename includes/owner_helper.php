@@ -19,92 +19,78 @@ function generateOwnerPassword($length = 12) {
 /**
  * Create user account for existing owner
  */
-function createOwnerUserAccount($pdo, $owner_id) {
-    try {
-        // Get owner details
-        $stmt = $pdo->prepare("SELECT * FROM owner WHERE owner_id = ?");
-        $stmt->execute([$owner_id]);
-        $owner = $stmt->fetch();
-        
-        if (!$owner) {
-            return ['success' => false, 'message' => 'Owner not found'];
-        }
-        
-        // Check if user already exists
-        if ($owner['user_id']) {
-            return ['success' => false, 'message' => 'User account already exists'];
-        }
-        
-        // Generate username from email
-        $username = strtolower(explode('@', $owner['email'])[0]);
-        $original_username = $username;
-        $counter = 1;
-        
-        // Ensure unique username
-        while (true) {
-            $check = $pdo->prepare("SELECT user_id FROM users WHERE username = ?");
-            $check->execute([$username]);
-            if ($check->rowCount() == 0) break;
-            $username = $original_username . $counter++;
-        }
-        
-        // Generate temporary password
-        $temp_password = generateOwnerPassword(10);
-        $hashed_password = password_hash($temp_password, PASSWORD_BCRYPT);
-        
-        // Create user account
-        $stmt = $pdo->prepare("
-            INSERT INTO users (username, password, nama_lengkap, email, role, status)
-            VALUES (?, ?, ?, ?, 'Owner', 'Aktif')
-        ");
-        $stmt->execute([
-            $username,
-            $hashed_password,
-            $owner['nama_lengkap'],
-            $owner['email']
-        ]);
-        
-        $user_id = $pdo->lastInsertId();
-        
-        // Link user to owner
-        $stmt = $pdo->prepare("UPDATE owner SET user_id = ? WHERE owner_id = ?");
-        $stmt->execute([$user_id, $owner_id]);
-        
-        return [
-            'success' => true,
-            'username' => $username,
-            'password' => $temp_password,
-            'user_id' => $user_id
-        ];
-        
-    } catch (PDOException $e) {
-        return ['success' => false, 'message' => $e->getMessage()];
+function createOwnerUserAccount($conn, $owner_id) {
+    // Get owner details
+    $result = mysqli_query($conn, "SELECT * FROM owner WHERE owner_id = '$owner_id'");
+    
+    $owner = mysqli_fetch_assoc($result);
+    
+    if (!$owner) {
+        return ['success' => false, 'message' => 'Owner not found'];
     }
+    
+    // Check if user already exists
+    if ($owner['user_id']) {
+        return ['success' => false, 'message' => 'User account already exists'];
+    }
+    
+    // Generate username from email
+    $username = strtolower(explode('@', $owner['email'])[0]);
+    $original_username = $username;
+    $counter = 1;
+    
+    // Ensure unique username
+    while (true) {
+        $check = mysqli_query($conn, "SELECT user_id FROM users WHERE username = '$username'");
+        if (mysqli_num_rows($check) == 0) break;
+        $username = $original_username . $counter++;
+    }
+    
+    // Generate temporary password
+    $temp_password = generateOwnerPassword(10);
+    
+    // Create user account
+    $result = mysqli_query($conn, "
+        INSERT INTO users (username, password, nama_lengkap, email, role, status)
+        VALUES ('$username', '$temp_password', '{$owner['nama_lengkap']}', '{$owner['email']}', 'Owner', 'Aktif')
+    ");
+    
+    $user_id = mysqli_insert_id($conn);
+    
+    // Link user to owner
+    $result = mysqli_query($conn, "UPDATE owner SET user_id = '$user_id' WHERE owner_id = '$owner_id'");
+    
+    return [
+        'success' => true,
+        'username' => $username,
+        'password' => $temp_password,
+        'user_id' => $user_id
+    ];
 }
 
 /**
  * Get all pets for an owner with health summary
  */
-function getOwnerPetsWithHealth($pdo, $owner_id) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            p.*,
-            TIMESTAMPDIFF(YEAR, p.tanggal_lahir, CURDATE()) as umur_tahun,
-            TIMESTAMPDIFF(MONTH, p.tanggal_lahir, CURDATE()) % 12 as umur_bulan,
-            (SELECT COUNT(*) FROM appointment WHERE pet_id = p.pet_id) as total_appointments,
-            (SELECT tanggal_appointment FROM appointment 
-             WHERE pet_id = p.pet_id AND status IN ('Pending', 'Confirmed') 
-             AND tanggal_appointment >= CURDATE()
-             ORDER BY tanggal_appointment ASC LIMIT 1) as next_appointment,
-            (SELECT mr.tanggal_kunjungan FROM medical_record mr
-             WHERE mr.pet_id = p.pet_id
-             ORDER BY mr.tanggal_kunjungan DESC LIMIT 1) as last_checkup
+function getOwnerPetsWithHealth($conn, $owner_id) {
+    $result = mysqli_query($conn, "SELECT p.*,
+        TIMESTAMPDIFF(YEAR, p.tanggal_lahir, CURDATE()) as umur_tahun,
+        TIMESTAMPDIFF(MONTH, p.tanggal_lahir, CURDATE()) % 12 as umur_bulan,
+        (SELECT COUNT(*) FROM appointment WHERE pet_id = p.pet_id) as total_appointments,
+        (SELECT tanggal_appointment FROM appointment 
+         WHERE pet_id = p.pet_id AND status IN ('Pending', 'Confirmed') 
+         AND tanggal_appointment >= CURDATE()
+         ORDER BY tanggal_appointment ASC LIMIT 1) as next_appointment,
+        (SELECT mr.tanggal_kunjungan FROM medical_record mr
+         WHERE mr.pet_id = p.pet_id
+         ORDER BY mr.tanggal_kunjungan DESC LIMIT 1) as last_checkup
         FROM pet p
-        WHERE p.owner_id = ?
-        ORDER BY p.tanggal_registrasi DESC
-    ");
-    $stmt->execute([$owner_id]);
-    return $stmt->fetchAll();
+        WHERE p.owner_id = '$owner_id'");
+    
+    $pets = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $pets[] = $row;
+    }
+    return $pets;
 }
 
 /**

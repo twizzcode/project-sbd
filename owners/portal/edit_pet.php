@@ -11,9 +11,9 @@ if (!$pet_id) {
 }
 
 // Get pet data and verify ownership
-$stmt = $pdo->prepare("SELECT * FROM pet WHERE pet_id = ? AND owner_id = ?");
-$stmt->execute([$pet_id, $_SESSION['owner_id']]);
-$pet = $stmt->fetch();
+$owner_id = $_SESSION['owner_id'];
+$result = mysqli_query($conn, "SELECT * FROM pet WHERE pet_id = '$pet_id' AND owner_id = '$owner_id'");
+$pet = mysqli_fetch_assoc($result);
 
 if (!$pet) {
     header('Location: index.php');
@@ -25,14 +25,14 @@ $error_message = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nama_hewan = trim($_POST['nama_hewan'] ?? '');
-    $jenis = trim($_POST['jenis'] ?? '');
-    $ras = trim($_POST['ras'] ?? '');
-    $jenis_kelamin = trim($_POST['jenis_kelamin'] ?? '');
+    $nama_hewan = $_POST['nama_hewan'] ?? '';
+    $jenis = $_POST['jenis'] ?? '';
+    $ras = $_POST['ras'] ?? '';
+    $jenis_kelamin = $_POST['jenis_kelamin'] ?? '';
     $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
     $berat_badan = $_POST['berat_badan'] ?? null;
-    $warna = trim($_POST['warna'] ?? '');
-    $ciri_khusus = trim($_POST['ciri_khusus'] ?? '');
+    $warna = $_POST['warna'] ?? '';
+    $ciri_khusus = $_POST['ciri_khusus'] ?? '';
     
     // Validation
     if (empty($nama_hewan)) {
@@ -42,38 +42,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (empty($jenis_kelamin)) {
         $error_message = 'Jenis kelamin wajib dipilih.';
     } else {
-        try {
-            // Update pet
-            $stmt = $pdo->prepare("
-                UPDATE pet 
-                SET nama_hewan = ?, jenis = ?, ras = ?, jenis_kelamin = ?, tanggal_lahir = ?, 
-                    berat_badan = ?, warna = ?, ciri_khusus = ?
-                WHERE pet_id = ? AND owner_id = ?
-            ");
-            
-            $stmt->execute([
-                $nama_hewan,
-                $jenis,
-                $ras ?: null,
-                $jenis_kelamin,
-                $tanggal_lahir ?: null,
-                $berat_badan ?: null,
-                $warna ?: null,
-                $ciri_khusus ?: null,
-                $pet_id,
-                $_SESSION['owner_id']
-            ]);
-            
-            $success_message = 'Pet information updated successfully!';
-            
-            // Refresh pet data
-            $stmt = $pdo->prepare("SELECT * FROM pet WHERE pet_id = ? AND owner_id = ?");
-            $stmt->execute([$pet_id, $_SESSION['owner_id']]);
-            $pet = $stmt->fetch();
-            
-        } catch (PDOException $e) {
-            $error_message = 'Error updating pet: ' . $e->getMessage();
-        }
+        // Update pet
+        mysqli_query($conn, "UPDATE pet SET nama_hewan = '$nama_hewan', jenis = '$jenis', ras = '$ras', 
+            jenis_kelamin = '$jenis_kelamin', tanggal_lahir = '$tanggal_lahir', berat_badan = '$berat_badan', 
+            warna = '$warna', ciri_khusus = '$ciri_khusus'
+            WHERE pet_id = '$pet_id' AND owner_id = '$owner_id'");
+        
+        $success_message = 'Pet information updated successfully!';
+        
+        // Refresh pet data
+        $result = mysqli_query($conn, "SELECT * FROM pet WHERE pet_id = '$pet_id' AND owner_id = '$owner_id'");
+        $pet = mysqli_fetch_assoc($result);
     }
 }
 ?>

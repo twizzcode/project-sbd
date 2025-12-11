@@ -1,9 +1,5 @@
 <?php
-/**
- * Owner Portal Authentication Check
- * Updated for unified users table with role-based access
- */
-
+// Owner Portal Authentication Check
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -23,9 +19,9 @@ if ($_SESSION['role'] !== 'Owner') {
 // Verify user record exists
 require_once __DIR__ . '/../../config/database.php';
 
-$stmt = $pdo->prepare("SELECT user_id, nama_lengkap, email, username FROM users WHERE user_id = ? AND role = 'Owner' AND status = 'Aktif'");
-$stmt->execute([$_SESSION['user_id']]);
-$owner = $stmt->fetch();
+$user_id = $_SESSION['user_id'];
+$result = mysqli_query($conn, "SELECT user_id, nama_lengkap, email, username FROM users WHERE user_id = '$user_id' AND role = 'Owner' AND status = 'Aktif'");
+$owner = mysqli_fetch_assoc($result);
 
 if (!$owner) {
     session_destroy();
@@ -35,12 +31,9 @@ if (!$owner) {
 
 // Store/update owner info in session
 $_SESSION['user_id'] = $owner['user_id'];
-$_SESSION['owner_id'] = $owner['user_id']; // Backward compatibility
+$_SESSION['owner_id'] = $owner['user_id'];
 $_SESSION['owner_name'] = $owner['nama_lengkap'];
 $_SESSION['owner_email'] = $owner['email'];
 $_SESSION['username'] = $owner['username'];
 
-// Update last activity
-$stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
-$stmt->execute([$owner['user_id']]);
 ?>

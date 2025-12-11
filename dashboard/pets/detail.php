@@ -17,7 +17,7 @@ if (!$pet_id) {
 }
 
 // Get detailed pet data including owner info and statistics
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         p.*,
         o.nama_lengkap as owner_name,
@@ -28,11 +28,11 @@ $stmt = $pdo->prepare("
     FROM pet p
     JOIN users o ON p.owner_id = o.user_id
     LEFT JOIN appointment a ON p.pet_id = a.pet_id
-    WHERE p.pet_id = ?
+    WHERE p.pet_id = '$pet_id'
     GROUP BY p.pet_id
 ");
-$stmt->execute([$pet_id]);
-$pet = $stmt->fetch();
+
+$pet = mysqli_fetch_assoc($result);
 
 if (!$pet) {
     $_SESSION['error'] = "Data hewan tidak ditemukan";
@@ -41,17 +41,16 @@ if (!$pet) {
 }
 
 // Get appointment history
-$app_stmt = $pdo->prepare("
+$app_result = mysqli_query($conn, "
     SELECT 
         a.*,
         vet.nama_dokter as dokter_name
     FROM appointment a
     LEFT JOIN veterinarian vet ON a.dokter_id = vet.dokter_id
-    WHERE a.pet_id = ?
+    WHERE a.pet_id = '$pet_id'
     ORDER BY a.tanggal_appointment DESC
 ");
-$app_stmt->execute([$pet_id]);
-$appointments = $app_stmt->fetchAll();
+$appointments = mysqli_fetch_all($app_result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -112,12 +111,6 @@ include '../../includes/header.php';
                                 <p class="text-gray-500">Tanggal Lahir</p>
                                 <p class="font-medium">
                                     <?php echo $pet['tanggal_lahir'] ? date('d/m/Y', strtotime($pet['tanggal_lahir'])) : '-'; ?>
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500">Tanggal Registrasi</p>
-                                <p class="font-medium">
-                                    <?php echo date('d/m/Y', strtotime($pet['tanggal_registrasi'])); ?>
                                 </p>
                             </div>
                         </div>
@@ -196,9 +189,6 @@ include '../../includes/header.php';
                                         </td>
                                         <td class="py-2">
                                             <?php echo htmlspecialchars($app['keluhan_awal'] ?? '-'); ?>
-                                        </td>
-                                        <td class="py-2">
-                                            <?php echo get_appointment_status_badge($app['status']); ?>
                                         </td>
                                         <td class="py-2">
                                             <?php echo htmlspecialchars($app['dokter_name'] ?? '-'); ?>

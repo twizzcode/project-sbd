@@ -24,27 +24,25 @@ if (!$appointment_id) {
 }
 
 // Get appointment details
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         a.*,
         p.nama_hewan,
         p.jenis as jenis_hewan,
         p.ras as ras_hewan,
-        p.foto_url as pet_foto,
         o.nama_lengkap as owner_name,
         o.no_telepon as owner_phone,
         o.email as owner_email,
         v.nama_dokter as dokter_name,
-        v.spesialisasi as dokter_spesialisasi,
-        v.foto_url as dokter_foto
+        v.spesialisasi as dokter_spesialisasi
     FROM appointment a
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN users o ON a.owner_id = o.user_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    WHERE a.appointment_id = ?
+    WHERE a.appointment_id = '$appointment_id'
 ");
-$stmt->execute([$appointment_id]);
-$appointment = $stmt->fetch();
+
+$appointment = mysqli_fetch_assoc($result);
 
 if (!$appointment) {
     $_SESSION['error'] = "Data janji temu tidak ditemukan";
@@ -55,21 +53,18 @@ if (!$appointment) {
 // Appointment history feature disabled (table not created yet)
 $history = [];
 
-// Get medical records if appointment is completed
-$medical_records = [];
-if ($appointment['status'] === 'Completed') {
-    $stmt = $pdo->prepare("
-        SELECT 
-            mr.*,
-            v.nama_dokter as dokter_name
-        FROM medical_record mr
-        JOIN veterinarian v ON mr.dokter_id = v.dokter_id
-        WHERE mr.appointment_id = ?
-        ORDER BY mr.tanggal_kunjungan DESC
-    ");
-    $stmt->execute([$appointment_id]);
-    $medical_records = $stmt->fetchAll();
-}
+// Get medical records
+$result = mysqli_query($conn, "
+    SELECT 
+        mr.*,
+        v.nama_dokter as dokter_name
+    FROM medical_record mr
+    JOIN veterinarian v ON mr.dokter_id = v.dokter_id
+    WHERE mr.appointment_id = '$appointment_id'
+    ORDER BY mr.tanggal_kunjungan DESC
+");
+
+$medical_records = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -88,35 +83,15 @@ include '../../includes/header.php';
                 <i class="fas fa-arrow-left mr-2"></i> Kembali
             </a>
             
-            <?php if ($appointment['status'] === 'Pending' && $_SESSION['role'] === 'Admin'): ?>
-                <button onclick="confirmApprove(<?php echo $appointment_id; ?>)"
-                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-check mr-2"></i> Setujui
-                </button>
-                <button onclick="confirmReject(<?php echo $appointment_id; ?>)"
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-times mr-2"></i> Tolak
-                </button>
-            <?php endif; ?>
+            <a href="edit.php?id=<?php echo $appointment_id; ?>" 
+               class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
+                <i class="fas fa-edit mr-2"></i> Edit
+            </a>
             
-            <?php if ($appointment['status'] !== 'Completed' && $appointment['status'] !== 'Cancelled'): ?>
-                <a href="edit.php?id=<?php echo $appointment_id; ?>" 
-                   class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-edit mr-2"></i> Edit
-                </a>
-                <?php if ($_SESSION['role'] === 'Admin' || $_SESSION['role'] === 'Dokter'): ?>
-                    <button onclick="confirmDelete(<?php echo $appointment_id; ?>)"
-                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg">
-                        <i class="fas fa-trash mr-2"></i> Hapus
-                    </button>
-                <?php endif; ?>
-            <?php endif; ?>
-            <?php if ($appointment['status'] === 'Confirmed'): ?>
-                <a href="../medical-records/create.php?appointment_id=<?php echo $appointment_id; ?>"
-                   class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-notes-medical mr-2"></i> Buat Rekam Medis
-                </a>
-            <?php endif; ?>
+            <a href="../medical-records/create.php?appointment_id=<?php echo $appointment_id; ?>"
+               class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                <i class="fas fa-notes-medical mr-2"></i> Buat Rekam Medis
+            </a>
         </div>
     </div>
 
@@ -130,21 +105,12 @@ include '../../includes/header.php';
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Status and Schedule -->
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Status</p>
-                        <div class="mb-4">
-                            <?php echo get_appointment_status_badge($appointment['status']); ?>
-                        </div>
-
-                        <p class="text-sm text-gray-600 mb-1">Tanggal & Waktu</p>
+                        <p class="text-sm text-gray-600 mb-1">Tanggal</p>
                         <p class="font-medium mb-4">
                             <?php echo date('l, d F Y', strtotime($appointment['tanggal_appointment'])); ?><br>
-                            <?php echo date('H:i', strtotime($appointment['jam_appointment'])); ?> WIB
                         </p>
 
                         <p class="text-sm text-gray-600 mb-1">Layanan</p>
-                        <p class="font-medium mb-4">
-                            <?php echo htmlspecialchars($appointment['jenis_layanan']); ?>
-                        </p>
                     </div>
 
                     <!-- Created Info -->
@@ -254,14 +220,6 @@ include '../../includes/header.php';
                                 <p class="text-sm text-gray-600">
                                     <?php echo date('d/m/Y H:i', strtotime($log['performed_at'])); ?>
                                 </p>
-                                <?php if ($log['action'] === 'UPDATE'): ?>
-                                    <p class="text-sm mt-1">
-                                        Status: 
-                                        <span class="text-gray-600">
-                                            <?php echo $log['old_status']; ?> → <?php echo $log['new_status']; ?>
-                                        </span>
-                                    </p>
-                                <?php endif; ?>
                                 <?php if ($log['notes']): ?>
                                     <p class="text-sm text-gray-600 mt-1">
                                         <?php echo htmlspecialchars($log['notes']); ?>
@@ -280,36 +238,6 @@ include '../../includes/header.php';
             <!-- Patient Info -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Informasi Pasien</h3>
-                
-                <div class="flex items-start gap-4 mb-4">
-                    <?php if ($appointment['pet_foto']): ?>
-                        <?php 
-                        $pet_foto_src = (strpos($appointment['pet_foto'], 'http') === 0) 
-                            ? $appointment['pet_foto'] 
-                            : '/vetclinic/assets/images/uploads/' . $appointment['pet_foto'];
-                        ?>
-                        <img src="<?php echo $pet_foto_src; ?>"
-                             alt="<?php echo htmlspecialchars($appointment['nama_hewan']); ?>"
-                             class="w-20 h-20 rounded-lg object-cover"
-                             onerror="this.src='https://via.placeholder.com/80?text=Pet'">
-                    <?php else: ?>
-                        <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-paw text-gray-400 text-2xl"></i>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div>
-                        <h4 class="font-bold text-lg">
-                            <?php echo htmlspecialchars($appointment['nama_hewan']); ?>
-                        </h4>
-                        <p class="text-gray-600">
-                            <?php echo htmlspecialchars($appointment['jenis_hewan']); ?>
-                            <?php if ($appointment['ras_hewan']): ?>
-                                - <?php echo htmlspecialchars($appointment['ras_hewan']); ?>
-                            <?php endif; ?>
-                        </p>
-                    </div>
-                </div>
 
                 <div class="border-t pt-4">
                     <p class="text-sm text-gray-600 mb-1">Pemilik</p>
@@ -329,23 +257,7 @@ include '../../includes/header.php';
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Informasi Dokter</h3>
                 
-                <div class="flex items-start gap-4">
-                    <?php if ($appointment['dokter_foto']): ?>
-                        <?php 
-                        $dokter_foto_src = (strpos($appointment['dokter_foto'], 'http') === 0) 
-                            ? $appointment['dokter_foto'] 
-                            : '/vetclinic/assets/images/uploads/' . $appointment['dokter_foto'];
-                        ?>
-                        <img src="<?php echo $dokter_foto_src; ?>"
-                             alt="Dr. <?php echo htmlspecialchars($appointment['dokter_name']); ?>"
-                             class="w-20 h-20 rounded-lg object-cover"
-                             onerror="this.src='https://via.placeholder.com/80?text=Dr'">
-                    <?php else: ?>
-                        <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user-md text-gray-400 text-2xl"></i>
-                        </div>
-                    <?php endif; ?>
-                    
+                <div class="flex items-start gap-4">                
                     <div>
                         <h4 class="font-bold text-lg">
                             Dr. <?php echo htmlspecialchars($appointment['dokter_name']); ?>
@@ -359,60 +271,10 @@ include '../../includes/header.php';
                 </div>
             </div>
         </div>
-    </div>
 </div>
 
 <script>
-function confirmApprove(id) {
-    Swal.fire({
-        title: 'Konfirmasi Setujui',
-        text: "Apakah Anda yakin ingin menyetujui janji temu ini?",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#10B981',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Ya, Setujui!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `approve.php?id=${id}`;
-        }
-    });
-}
-
-function confirmReject(id) {
-    Swal.fire({
-        title: 'Konfirmasi Tolak',
-        text: "Apakah Anda yakin ingin menolak janji temu ini?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Ya, Tolak!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `reject.php?id=${id}`;
-        }
-    });
-}
-
-function confirmDelete(id) {
-    Swal.fire({
-        title: 'Konfirmasi Hapus',
-        text: "Apakah Anda yakin ingin menghapus janji temu ini?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Ya, Hapus!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `delete.php?id=${id}`;
-        }
-    });
-}
+// No additional JavaScript needed
 </script>
 
 <?php include '../../includes/footer.php'; ?>

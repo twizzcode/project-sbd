@@ -3,24 +3,24 @@ require_once __DIR__ . '/../includes/owner_auth.php';
 
 $page_title = 'My Profile';
 
+$owner_id = $_SESSION['owner_id'];
+
 // Get owner details
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT * 
     FROM users 
-    WHERE user_id = ? AND role = 'Owner'
+    WHERE user_id = '$owner_id' AND role = 'Owner'
 ");
-$stmt->execute([$_SESSION['owner_id']]);
-$owner = $stmt->fetch();
+
+$owner = mysqli_fetch_assoc($result);
 
 // Count pets
-$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM pet WHERE owner_id = ?");
-$stmt->execute([$_SESSION['owner_id']]);
-$pet_count = $stmt->fetchColumn();
+$result = mysqli_query($conn, "SELECT COUNT(*) as total FROM pet WHERE owner_id = '$owner_id'");
+$pet_count = mysqli_fetch_row($result)[0];
 
 // Count appointments
-$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM appointment WHERE owner_id = ?");
-$stmt->execute([$_SESSION['owner_id']]);
-$appointment_count = $stmt->fetchColumn();
+$result = mysqli_query($conn, "SELECT COUNT(*) as total FROM appointment WHERE owner_id = '$owner_id'");
+$appointment_count = mysqli_fetch_row($result)[0];
 ?>
 <?php require_once __DIR__ . '/../includes/owner_header.php'; ?>
 

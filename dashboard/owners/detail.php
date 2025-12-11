@@ -23,7 +23,7 @@ if (!$owner_id) {
 }
 
 // Get owner data
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         u.*,
         COUNT(DISTINCT p.pet_id) as total_pets,
@@ -33,11 +33,11 @@ $stmt = $pdo->prepare("
     LEFT JOIN pet p ON u.user_id = p.owner_id
     LEFT JOIN appointment a ON u.user_id = a.owner_id
     LEFT JOIN medical_record mr ON p.pet_id = mr.pet_id
-    WHERE u.user_id = ? AND u.role = 'Owner'
+    WHERE u.user_id = '$owner_id' AND u.role = 'Owner'
     GROUP BY u.user_id
 ");
-$stmt->execute([$owner_id]);
-$owner = $stmt->fetch();
+
+$owner = mysqli_fetch_assoc($result);
 
 if (!$owner) {
     $_SESSION['error'] = "Pemilik tidak ditemukan";
@@ -46,7 +46,7 @@ if (!$owner) {
 }
 
 // Get owner's pets
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         p.*,
         COUNT(DISTINCT mr.record_id) as total_records
@@ -56,11 +56,11 @@ $stmt = $pdo->prepare("
     GROUP BY p.pet_id
     ORDER BY p.tanggal_registrasi DESC
 ");
-$stmt->execute([$owner_id]);
-$pets = $stmt->fetchAll();
+
+$pets = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get owner's appointments
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         a.*,
         p.nama_hewan,
@@ -69,14 +69,14 @@ $stmt = $pdo->prepare("
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
     WHERE a.owner_id = ?
-    ORDER BY a.tanggal_appointment DESC, a.jam_appointment DESC
+    ORDER BY a.tanggal_appointment DESC
     LIMIT 10
 ");
-$stmt->execute([$owner_id]);
-$appointments = $stmt->fetchAll();
+
+$appointments = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 // Get recent medical records
-$stmt = $pdo->prepare("
+$result = mysqli_query($conn, "
     SELECT 
         mr.*,
         p.nama_hewan,
@@ -88,8 +88,8 @@ $stmt = $pdo->prepare("
     ORDER BY mr.tanggal_kunjungan DESC
     LIMIT 10
 ");
-$stmt->execute([$owner_id]);
-$medical_records = $stmt->fetchAll();
+
+$medical_records = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
 include '../../includes/header.php';
 ?>
@@ -252,8 +252,7 @@ include '../../includes/header.php';
                     <tbody class="bg-white divide-y divide-gray-200">
                         <?php foreach ($appointments as $apt): ?>
                             <tr>
-                                <td class="px-4 py-3 text-sm"><?php echo date('d/m/Y', strtotime($apt['tanggal_appointment'])); ?></td>
-                                <td class="px-4 py-3 text-sm"><?php echo date('H:i', strtotime($apt['jam_appointment'])); ?></td>
+                                <td class="px-4 py-3 text-sm"><?php echo date('d M Y', strtotime($apt['tanggal_appointment'])); ?></td>
                                 <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($apt['nama_hewan']); ?></td>
                                 <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($apt['nama_dokter']); ?></td>
                                 <td class="px-4 py-3 text-sm">

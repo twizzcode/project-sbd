@@ -3,35 +3,39 @@ require_once __DIR__ . '/../includes/owner_auth.php';
 
 $page_title = 'My Appointments';
 
+$owner_id = $_SESSION['owner_id'];
+
 // Get all appointments for this owner's pets
-$stmt = $pdo->prepare("
+// Upcoming = belum ada rekam medis, Completed = sudah ada rekam medis
+$result = mysqli_query($conn, "
     SELECT 
         a.*,
         p.nama_hewan,
         p.jenis,
         v.nama_dokter,
-        v.spesialisasi
+        v.spesialisasi,
+        mr.record_id
     FROM appointment a
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    WHERE a.owner_id = ?
-    ORDER BY a.tanggal_appointment DESC, a.jam_appointment DESC
+    LEFT JOIN medical_record mr ON a.appointment_id = mr.appointment_id
+    WHERE a.owner_id = '$owner_id'
+    ORDER BY a.tanggal_appointment DESC
 ");
-$stmt->execute([$_SESSION['owner_id']]);
-$appointments = $stmt->fetchAll();
 
-// Group by status
+$appointments = mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+// Group by medical record status
 $upcoming = [];
 $completed = [];
-$cancelled = [];
 
 foreach ($appointments as $apt) {
-    if (in_array($apt['status'], ['Pending', 'Confirmed', 'Scheduled'])) {
-        $upcoming[] = $apt;
-    } elseif ($apt['status'] === 'Completed') {
+    if ($apt['record_id']) {
+        // Sudah ada rekam medis = completed
         $completed[] = $apt;
     } else {
-        $cancelled[] = $apt;
+        // Belum ada rekam medis = upcoming
+        $upcoming[] = $apt;
     }
 }
 ?>
@@ -57,9 +61,6 @@ foreach ($appointments as $apt) {
             <button onclick="showTab('completed')" class="tab-btn py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-semibold" id="tab-completed">
                 Completed (<?= count($completed) ?>)
             </button>
-            <button onclick="showTab('cancelled')" class="tab-btn py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-semibold" id="tab-cancelled">
-                Cancelled (<?= count($cancelled) ?>)
-            </button>
         </nav>
     </div>
 
@@ -76,13 +77,7 @@ foreach ($appointments as $apt) {
             </div>
         <?php else: ?>
             <div class="grid gap-6">
-                <?php foreach ($upcoming as $apt): 
-                    $status_colors = [
-                        'Pending' => 'bg-yellow-100 text-yellow-800',
-                        'Confirmed' => 'bg-blue-100 text-blue-800',
-                        'Scheduled' => 'bg-green-100 text-green-800'
-                    ];
-                ?>
+                <?php foreach ($upcoming as $apt): ?>
                 <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition">
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-start space-x-4">
@@ -91,18 +86,14 @@ foreach ($appointments as $apt) {
                             </div>
                             <div>
                                 <h3 class="text-xl font-bold text-gray-800"><?= htmlspecialchars($apt['nama_hewan']) ?></h3>
-                                <p class="text-gray-600"><?= htmlspecialchars($apt['jenis_layanan']) ?></p>
-                                <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold <?= $status_colors[$apt['status']] ?>">
-                                    <?= $apt['status'] ?>
+                                <span class="inline-block mt-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                    Scheduled
                                 </span>
                             </div>
                         </div>
                         <div class="text-right">
                             <div class="text-lg font-semibold text-indigo-600">
                                 <?= date('d M Y', strtotime($apt['tanggal_appointment'])) ?>
-                            </div>
-                            <div class="text-gray-600">
-                                <i class="far fa-clock mr-1"></i><?= date('H:i', strtotime($apt['jam_appointment'])) ?>
                             </div>
                         </div>
                     </div>
@@ -157,41 +148,6 @@ foreach ($appointments as $apt) {
                                 <p class="text-sm text-gray-500 mt-1">
                                     Dr. <?= htmlspecialchars($apt['nama_dokter']) ?>
                                 </p>
-                            </div>
-                        </div>
-                        <div class="text-right text-sm text-gray-600">
-                            <?= date('d M Y', strtotime($apt['tanggal_appointment'])) ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
-
-    <!-- Cancelled Appointments -->
-    <div id="content-cancelled" class="tab-content hidden">
-        <?php if (empty($cancelled)): ?>
-            <div class="bg-white rounded-xl shadow p-12 text-center">
-                <i class="fas fa-times-circle text-6xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-700 mb-2">No Cancelled Appointments</h3>
-                <p class="text-gray-500">Cancelled appointments will appear here</p>
-            </div>
-        <?php else: ?>
-            <div class="grid gap-6">
-                <?php foreach ($cancelled as $apt): ?>
-                <div class="bg-white rounded-xl shadow p-6 opacity-75">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-times text-red-600"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-800"><?= htmlspecialchars($apt['nama_hewan']) ?></h3>
-                                <p class="text-gray-600"><?= htmlspecialchars($apt['jenis_layanan']) ?></p>
-                                <span class="inline-block mt-1 px-2 py-1 bg-red-100 text-red-800 rounded text-xs">
-                                    <?= $apt['status'] ?>
-                                </span>
                             </div>
                         </div>
                         <div class="text-right text-sm text-gray-600">

@@ -5,7 +5,7 @@ require_once __DIR__ . '/../../includes/owner_helper.php';
 $page_title = 'My Pets Dashboard';
 
 // Get all pets with health summary
-$pets = getOwnerPetsWithHealth($pdo, $_SESSION['owner_id']);
+$pets = getOwnerPetsWithHealth($conn, $_SESSION['owner_id']);
 
 // Calculate statistics
 $total_pets = count($pets);

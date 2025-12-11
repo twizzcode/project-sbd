@@ -21,94 +21,65 @@ header('Location: /auth/login.php');
 exit();
 ?>
 
-// Security headers
-header("X-Content-Type-Options: nosniff");
-header("X-Frame-Options: DENY");
-header("X-XSS-Protection: 1; mode=block");
-header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net code.jquery.com cdn.datatables.net; style-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com cdn.datatables.net fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com data:");
-
 $page_title = 'Janji Temu';
 
 // Initialize variables
-$page = isset($_GET['page']) ? (int)clean_input($_GET['page']) : 1;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
-// Get filters with proper sanitization
-$search = isset($_GET['search']) ? clean_input($_GET['search']) : '';
-$status = isset($_GET['status']) ? clean_input($_GET['status']) : '';
-$date_from = isset($_GET['date_from']) ? clean_input($_GET['date_from']) : date('Y-m-d');
-$date_to = isset($_GET['date_to']) ? clean_input($_GET['date_to']) : date('Y-m-d', strtotime('+7 days'));
-$dokter_id = isset($_GET['dokter_id']) ? (int)clean_input($_GET['dokter_id']) : 0;
+// Get filters
+$search = $_GET['search'] ?? '';
+$status = $_GET['status'] ?? '';
+$date_from = $_GET['date_from'] ?? date('Y-m-d');
+$date_to = $_GET['date_to'] ?? date('Y-m-d', strtotime('+7 days'));
+$dokter_id = isset($_GET['dokter_id']) ? (int)$_GET['dokter_id'] : 0;
 
-// Validate date range
-if (!validate_date_range($date_from, $date_to)) {
-    $_SESSION['error'] = "Range tanggal tidak valid";
-    $date_from = date('Y-m-d');
-    $date_to = date('Y-m-d', strtotime('+7 days'));
-}
-
-// Build secure query with prepared statements
-$query = "
-    SELECT 
-        a.*,
-        p.nama_hewan,
-        o.nama_lengkap as owner_name,
-        o.no_telepon as owner_phone,
-        v.nama_dokter as dokter_name,
-        a.jenis_layanan as nama_layanan
+// Build query
+$query = "SELECT a.*, p.nama_hewan, o.nama_lengkap as owner_name,
+    o.no_telepon as owner_phone, v.nama_dokter as dokter_name, a.jenis_layanan as nama_layanan
     FROM appointment a
     JOIN pet p ON a.pet_id = p.pet_id
     JOIN users o ON a.owner_id = o.user_id
     JOIN veterinarian v ON a.dokter_id = v.dokter_id
-    WHERE 1=1
-";
-
-$params = [];
+    WHERE 1=1";
 
 if ($search) {
-    $query .= " AND (p.nama_hewan LIKE ? OR o.nama_lengkap LIKE ? OR o.no_telepon LIKE ?)";
-    $search_param = "%$search%";
-    $params = array_merge($params, [$search_param, $search_param, $search_param]);
+    $query .= " AND (p.nama_hewan LIKE '%$search%' OR o.nama_lengkap LIKE '%$search%' OR o.no_telepon LIKE '%$search%')";
 }
-
 if ($status) {
-    $query .= " AND a.status = ?";
-    $params[] = $status;
+    $query .= " AND a.status = '$status'";
 }
-
 if ($date_from && $date_to) {
-    $query .= " AND a.tanggal_appointment BETWEEN ? AND ?";
-    $params[] = $date_from;
-    $params[] = $date_to;
+    $query .= " AND a.tanggal_appointment BETWEEN '$date_from' AND '$date_to'";
 }
-
 if ($dokter_id) {
-    $query .= " AND a.dokter_id = ?";
-    $params[] = $dokter_id;
+    $query .= " AND a.dokter_id = '$dokter_id'";
 }
 
-// Get total records for pagination
+// Get total records
 $count_query = str_replace("SELECT a.*, p.nama_hewan", "SELECT COUNT(*)", $query);
-$stmt = $pdo->prepare($count_query);
-$stmt->execute($params);
-$total_records = $stmt->fetchColumn();
+$result = mysqli_query($conn, $count_query);
+$row = mysqli_fetch_row($result);
+$total_records = $row[0];
 $total_pages = ceil($total_records / $per_page);
 
 // Add sorting and limit
-$query .= " ORDER BY a.tanggal_appointment ASC, a.jam_appointment ASC LIMIT ? OFFSET ?";
-$params[] = $per_page;
-$params[] = $offset;
+$query .= " ORDER BY a.tanggal_appointment ASC LIMIT $per_page OFFSET $offset";
 
-// Execute final query
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$appointments = $stmt->fetchAll();
+// Execute query
+$result = mysqli_query($conn, $query);
+$appointments = [];
+while ($row = mysqli_fetch_assoc($result)) {
+    $appointments[] = $row;
+}
 
-// Get all doctors for filter
-$doctors_stmt = $pdo->query("SELECT dokter_id, nama_dokter FROM veterinarian WHERE status = 'Aktif' ORDER BY nama_dokter");
-$doctors = $doctors_stmt->fetchAll();
+// Get all doctors
+$doctors_result = mysqli_query($conn, "SELECT dokter_id, nama_dokter FROM veterinarian WHERE status = 'Aktif' ORDER BY nama_dokter");
+$doctors = [];
+while ($row = mysqli_fetch_assoc($doctors_result)) {
+    $doctors[] = $row;
+}
 
 include __DIR__ . '/../includes/header.php';
 ?>

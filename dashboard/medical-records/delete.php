@@ -29,7 +29,7 @@ if (!$record_id) {
 }
 
 // Get record data
-$record = get_medical_record($pdo, $record_id);
+$record = get_medical_record($conn, $record_id);
 
 if (!$record) {
     $_SESSION['error'] = "Data rekam medis tidak ditemukan";
@@ -46,15 +46,15 @@ if ($record['status'] !== 'Active') {
 
 // Handle deletion
 try {
-    $pdo->beginTransaction();
+    mysqli_begin_transaction($conn);
 
     // Get all attachments
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         SELECT * FROM medical_record_attachment 
         WHERE record_id = ?
     ");
-    $stmt->execute([$record_id]);
-    $attachments = $stmt->fetchAll();
+    
+    $attachments = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
     // Delete all attachment files
     foreach ($attachments as $attachment) {
@@ -73,11 +73,11 @@ try {
     }
 
     // Delete all attachments from database
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         DELETE FROM medical_record_attachment 
         WHERE record_id = ?
     ");
-    $stmt->execute([$record_id]);
+    
 
     // Create history record
     create_medical_record_history(
@@ -90,19 +90,19 @@ try {
     );
 
     // Delete the medical record permanently
-    $stmt = $pdo->prepare("
+    $result = mysqli_query($conn, "
         DELETE FROM medical_record 
         WHERE rekam_id = ?
     ");
-    $stmt->execute([$record_id]);
+    
 
-    $pdo->commit();
+    mysqli_commit($conn);
     $_SESSION['success'] = "Rekam medis berhasil dihapus";
     header("Location: index.php");
     exit;
 
 } catch (Exception $e) {
-    $pdo->rollBack();
+    mysqli_rollback($conn);
     $_SESSION['error'] = "Terjadi kesalahan: " . $e->getMessage();
     header("Location: detail.php?id=" . $record_id);
     exit;
